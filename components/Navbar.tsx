@@ -47,7 +47,7 @@ const Navbar: React.FC = () => {
               to="/admin" 
               className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
                 location.pathname === '/admin' 
-                ? 'bg-white text-red-700 shadow-xl translate-y-[-2px]' 
+                ? 'bg-yellow-400 text-red-900 shadow-xl translate-y-[-2px]' 
                 : 'text-yellow-300 hover:text-white hover:bg-red-600/50'
               }`}
             >
@@ -56,7 +56,20 @@ const Navbar: React.FC = () => {
           )}
         </div>
 
-        <div className="flex items-center space-x-4 md:space-x-6">
+        <div className="flex items-center space-x-3 md:space-x-6">
+          {/* Admin Mobile Quick Access */}
+          {isAdmin && (
+            <Link 
+              to="/admin" 
+              className={`md:hidden flex items-center justify-center w-10 h-10 rounded-xl transition-all ${
+                location.pathname === '/admin' ? 'bg-yellow-400 text-red-900 shadow-lg' : 'bg-red-800/40 text-yellow-300 border border-white/10'
+              }`}
+              title="Admin Panel"
+            >
+              <i className="fa-solid fa-shield-halved"></i>
+            </Link>
+          )}
+
           <Link to="/cart" className="relative text-white/90 hover:text-white transition-all flex items-center group">
             <div className="bg-red-800/40 w-10 h-10 flex items-center justify-center rounded-xl border border-white/10 group-hover:bg-red-600 transition-colors">
               <i className="fa-solid fa-cart-arrow-down text-lg"></i>
@@ -69,14 +82,15 @@ const Navbar: React.FC = () => {
           </Link>
 
           {user ? (
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 md:space-x-4">
               <div className="flex items-center space-x-3">
                 <Link to="/profile">
                   <img src={user.avatar} alt={user.name} className="w-9 h-9 rounded-xl border-2 border-white/20 hover:border-white transition-all shadow-md" />
                 </Link>
                 <button 
                   onClick={logout}
-                  className="text-red-200 hover:text-white transition-colors"
+                  className="text-red-200 hover:text-white transition-colors p-2"
+                  title="Logout"
                 >
                   <i className="fa-solid fa-power-off"></i>
                 </button>
