@@ -1,11 +1,14 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useStore, useAuth } from '../App.tsx';
 
 const Cart: React.FC = () => {
-  const { cart, removeFromCart, updateCartQuantity, placeOrder } = useStore();
+  const { cart, removeFromCart, updateCartQuantity } = useStore();
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  const [itemToRemove, setItemToRemove] = useState<string | null>(null);
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const shipping = subtotal > 1999 ? 0 : 99;
@@ -16,9 +19,14 @@ const Cart: React.FC = () => {
       navigate('/login');
       return;
     }
-    placeOrder();
-    alert("Order confirmed! Your items are on their way.");
-    navigate('/profile');
+    navigate('/checkout');
+  };
+
+  const confirmRemove = () => {
+    if (itemToRemove) {
+      removeFromCart(itemToRemove);
+      setItemToRemove(null);
+    }
   };
 
   if (cart.length === 0) {
@@ -76,7 +84,7 @@ const Cart: React.FC = () => {
                     </button>
                   </div>
                   <button 
-                    onClick={() => removeFromCart(item.id)}
+                    onClick={() => setItemToRemove(item.id)}
                     className="text-red-400 hover:text-red-600 font-black text-sm uppercase tracking-widest flex items-center transition-colors"
                   >
                     <i className="fa-solid fa-trash-can mr-2"></i> Remove
@@ -136,6 +144,39 @@ const Cart: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Item Removal Confirmation Modal */}
+      {itemToRemove && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[3rem] shadow-2xl p-10 border border-red-50 dark:border-white/5 transform animate-in zoom-in-95 duration-300">
+            <div className="text-center space-y-6">
+              <div className="w-20 h-20 bg-red-50 dark:bg-red-950/30 rounded-[2rem] flex items-center justify-center mx-auto text-red-600 dark:text-red-400 text-3xl shadow-inner">
+                <i className="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">Remove Item?</h3>
+                <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                  Are you sure you want to remove this item from your elite collection? This action cannot be undone within the current session.
+                </p>
+              </div>
+              <div className="flex space-x-4 pt-4">
+                <button 
+                  onClick={confirmRemove}
+                  className="flex-1 bg-red-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg active:scale-95"
+                >
+                  Yes, Remove
+                </button>
+                <button 
+                  onClick={() => setItemToRemove(null)}
+                  className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

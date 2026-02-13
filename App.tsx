@@ -5,7 +5,6 @@ import { User, Product, CartItem, Order, UserRole } from './types.ts';
 import { INITIAL_PRODUCTS } from './constants.ts';
 import Navbar from './components/Navbar.tsx';
 import Footer from './components/Footer.tsx';
-import Chatbot from './components/Chatbot.tsx';
 import Home from './pages/Home.tsx';
 import Shop from './pages/Shop.tsx';
 import Orders from './pages/Orders.tsx';
@@ -15,6 +14,7 @@ import Profile from './pages/Profile.tsx';
 import Login from './pages/Login.tsx';
 import Signup from './pages/Signup.tsx';
 import AdminDashboard from './pages/AdminDashboard.tsx';
+import Checkout from './pages/Checkout.tsx';
 
 // Improved API_BASE detection: use relative path for production
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
@@ -211,6 +211,7 @@ const App: React.FC = () => {
                       <Route path="/orders" element={<Orders />} />
                       <Route path="/product/:id" element={<ProductDetails />} />
                       <Route path="/cart" element={<Cart />} />
+                      <Route path="/checkout" element={user ? <Checkout /> : <Navigate to="/login" />} />
                       <Route path="/login" element={<Login />} />
                       <Route path="/signup" element={<Signup />} />
                       <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
@@ -218,7 +219,6 @@ const App: React.FC = () => {
                     </Routes>
                   )}
                 </main>
-                <Chatbot />
                 <Footer />
               </div>
             </HashRouter>

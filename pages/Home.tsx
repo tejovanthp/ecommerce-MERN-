@@ -14,9 +14,9 @@ const Home: React.FC = () => {
       <section className="relative h-[650px] rounded-[3.5rem] overflow-hidden bg-slate-950 text-white shadow-2xl group transition-all duration-700 border border-white/5">
         <div className="absolute inset-0">
           <img 
-            src="https://images.unsplash.com/photo-1549439602-43ebca2327af?auto=format&fit=crop&q=80&w=1600" 
+            src="https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=1600" 
             className="w-full h-full object-cover opacity-30 scale-105 group-hover:scale-100 transition-transform duration-[2000ms]" 
-            alt="Red Luxury Theme"
+            alt="Red Luxury Lifestyle"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-red-950/70 to-transparent dark:from-black dark:via-red-950/90"></div>
         </div>
@@ -30,7 +30,7 @@ const Home: React.FC = () => {
             Redefine <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-rose-300">Your Limits.</span>
           </h1>
           <p className="text-lg md:text-2xl text-slate-300/80 mb-12 leading-relaxed max-w-2xl font-medium">
-            Discover a curated collection of bold technology and timeless fashion. Experience India's most vibrant shopping destination, powered by AI insights.
+            Discover a curated collection of bold technology and timeless fashion. Experience India's most vibrant shopping destination.
           </p>
           <div className="flex flex-wrap gap-6">
             <Link to="/shop" className="bg-red-600 text-white px-12 py-5 rounded-[1.8rem] font-black text-xl hover:shadow-[0_20px_50px_rgba(220,38,38,0.3)] hover:-translate-y-1 transition-all active:scale-95 shadow-2xl">
@@ -77,11 +77,11 @@ const Home: React.FC = () => {
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16">
             <div className="space-y-6 text-center md:text-left">
                <div className="w-20 h-20 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 rounded-[2rem] flex items-center justify-center text-3xl shadow-inner mx-auto md:mx-0">
-                  <i className="fa-solid fa-sparkles"></i>
+                  <i className="fa-solid fa-gem"></i>
                </div>
                <div>
-                  <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-2">AI Precision</h3>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">Smart recommendations that understand your unique taste perfectly.</p>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Premium Quality</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">Handpicked collections that represent the pinnacle of craft and design.</p>
                </div>
             </div>
             <div className="space-y-6 text-center md:text-left">

@@ -1,12 +1,14 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useStore, useAuth } from '../App.tsx';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
+import { Order } from '../types.ts';
 
 const Orders: React.FC = () => {
   const { user } = useAuth();
   const { orders, addToCart } = useStore();
   const navigate = useNavigate();
+  const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
 
   if (!user) return <Navigate to="/login" />;
 
@@ -19,8 +21,160 @@ const Orders: React.FC = () => {
   };
 
   const handleSupport = () => {
-    alert("Crimson Pro AI Concierge is standing by. Check the bottom right widget.");
+    alert("Our premium support concierge is standing by to assist you. Reference your order ID when contacting.");
   };
+
+  const getTrackingSteps = (status: string) => {
+    const steps = [
+      { label: 'Confirmed', icon: 'fa-check-double', date: 'Day 1, 09:00 AM' },
+      { label: 'Processing', icon: 'fa-microchip', date: 'Day 1, 02:30 PM' },
+      { label: 'Dispatched', icon: 'fa-box-open', date: 'Day 2, 10:15 AM' },
+      { label: 'In Transit', icon: 'fa-plane-up', date: 'In Progress' },
+      { label: 'Delivered', icon: 'fa-house-chimney-check', date: 'Pending' }
+    ];
+
+    const statusMap: Record<string, number> = {
+      'PENDING': 2, 
+      'SHIPPED': 4, 
+      'DELIVERED': 5, 
+      'CANCELLED': 0
+    };
+
+    const currentIdx = statusMap[status] || 1;
+    const progressPercent = (currentIdx / steps.length) * 100;
+
+    return { steps, current: currentIdx, progressPercent };
+  };
+
+  if (trackingOrder) {
+    const { steps, current, progressPercent } = getTrackingSteps(trackingOrder.status);
+    return (
+      <div className="max-w-4xl mx-auto py-12 px-4 animate-in fade-in slide-in-from-bottom-5 duration-500">
+        <button 
+          onClick={() => setTrackingOrder(null)}
+          className="flex items-center text-slate-400 hover:text-red-600 font-black text-xs uppercase tracking-widest mb-12 transition-colors group"
+        >
+          <i className="fa-solid fa-arrow-left mr-3 group-hover:-translate-x-2 transition-transform"></i> 
+          Back to Archives
+        </button>
+
+        <div className="bg-white dark:bg-slate-900 rounded-[3.5rem] border border-red-50 dark:border-white/5 shadow-2xl overflow-hidden">
+          <div className="bg-red-700 p-12 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-12 opacity-10 rotate-12">
+               <i className="fa-solid fa-location-crosshairs text-[10rem]"></i>
+            </div>
+            <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+               <div>
+                  <h1 className="text-4xl font-black tracking-tighter mb-2">Logistics Console</h1>
+                  <p className="text-red-100/80 font-bold text-sm uppercase tracking-widest">Order Ref: #{trackingOrder.id.split('-')[1]}</p>
+               </div>
+               <div className="bg-white/10 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-red-100 mb-1">Estimated Arrival</p>
+                  <p className="text-xl font-black">Tomorrow, by 8:00 PM</p>
+               </div>
+            </div>
+          </div>
+
+          <div className="p-12 space-y-16">
+             {/* Enhanced Horizontal Progress Bar with Checkpoints */}
+             <div className="space-y-10">
+                <div className="flex justify-between items-center mb-2 px-1">
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Deployment Progress</p>
+                   <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">{Math.round(progressPercent)}% Secure</p>
+                </div>
+                
+                <div className="relative pt-6">
+                  {/* The Track */}
+                  <div className="absolute top-1/2 left-0 w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full -translate-y-1/2"></div>
+                  
+                  {/* The Progress Fill */}
+                  <div 
+                    className="absolute top-1/2 left-0 h-1.5 bg-red-600 rounded-full -translate-y-1/2 transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(220,38,38,0.5)]"
+                    style={{ width: `${progressPercent}%` }}
+                  ></div>
+
+                  {/* Checkpoint Markers */}
+                  <div className="relative flex justify-between">
+                    {steps.map((step, idx) => {
+                      const active = idx < current;
+                      return (
+                        <div key={idx} className="flex flex-col items-center">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm shadow-lg transition-all duration-500 z-10 ${
+                            active ? 'bg-red-600 text-white border-2 border-white dark:border-slate-900' : 'bg-slate-50 dark:bg-slate-800 text-slate-300 border-2 border-slate-100 dark:border-white/5'
+                          }`}>
+                            <i className={`fa-solid ${step.icon}`}></i>
+                          </div>
+                          <span className={`text-[8px] font-black uppercase tracking-widest mt-4 ${active ? 'text-red-600' : 'text-slate-400'}`}>
+                            {step.label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+             </div>
+
+             <div className="relative">
+                {/* Vertical Line */}
+                <div className="absolute left-6 top-0 bottom-0 w-1 bg-slate-100 dark:bg-slate-800 rounded-full"></div>
+                <div 
+                  className="absolute left-6 top-0 w-1 bg-red-600 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(220,38,38,0.5)]"
+                  style={{ height: `${((current - 1) / (steps.length - 1)) * 100}%` }}
+                ></div>
+
+                <div className="space-y-12 relative z-10">
+                   {steps.map((step, idx) => {
+                     const isCompleted = idx < current;
+                     const isCurrent = idx === current - 1;
+                     return (
+                       <div key={step.label} className={`flex items-start space-x-10 transition-all duration-500 ${!isCompleted && !isCurrent ? 'opacity-30' : 'opacity-100'}`}>
+                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-xl transition-all duration-500 ${
+                            isCompleted ? 'bg-red-600 text-white' : 
+                            isCurrent ? 'bg-white dark:bg-slate-800 text-red-600 border-2 border-red-600 ring-4 ring-red-600/10' : 
+                            'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                          }`}>
+                             <i className={`fa-solid ${step.icon} ${isCurrent ? 'animate-bounce' : ''}`}></i>
+                          </div>
+                          <div>
+                             <h4 className={`text-xl font-black tracking-tight ${isCurrent ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>
+                               {step.label}
+                             </h4>
+                             <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">{step.date}</p>
+                             {isCurrent && (
+                               <div className="mt-4 p-4 bg-red-50 dark:bg-red-950/20 rounded-2xl border border-red-100 dark:border-white/5 animate-in slide-in-from-left-2">
+                                  <p className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-widest mb-1">Live Update</p>
+                                  <p className="text-slate-700 dark:text-slate-300 text-sm font-medium italic">"Package successfully passed through the Crimson Mumbai hub. Scanning for final route assignment."</p>
+                               </div>
+                             )}
+                          </div>
+                       </div>
+                     );
+                   })}
+                </div>
+             </div>
+          </div>
+
+          <div className="bg-slate-50 dark:bg-slate-800/50 p-10 flex flex-col md:flex-row justify-between items-center gap-8 border-t border-slate-100 dark:border-white/5">
+             <div className="flex items-center space-x-6">
+                <div className="w-14 h-14 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg">
+                   <i className="fa-solid fa-truck-ramp-box text-red-600 text-xl"></i>
+                </div>
+                <div>
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Logistics Partner</p>
+                   <p className="font-black text-slate-900 dark:text-white">Crimson Global Express (Premium)</p>
+                </div>
+             </div>
+             <button 
+               onClick={handleSupport}
+               className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95"
+             >
+               Contact Dispatcher
+             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto py-12 px-4">
@@ -44,79 +198,102 @@ const Orders: React.FC = () => {
 
       {userOrders.length > 0 ? (
         <div className="space-y-12">
-          {userOrders.map(order => (
-            <div key={order.id} className="bg-white dark:bg-slate-900 rounded-[3.5rem] border border-slate-100 dark:border-white/5 shadow-2xl shadow-red-500/5 overflow-hidden transition-all duration-300 group">
-              <div className="bg-slate-50/50 dark:bg-slate-800/20 px-10 py-8 flex flex-wrap justify-between items-center gap-8 border-b border-slate-50 dark:border-white/5">
-                 <div className="flex items-center space-x-12">
-                    <div>
-                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Order Finalized</p>
-                      <p className="text-sm font-black text-slate-900 dark:text-white">{new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Investment Total</p>
-                      <p className="text-sm font-black text-red-600 dark:text-red-400 uppercase tracking-tighter">₹{order.total.toLocaleString('en-IN')}</p>
-                    </div>
-                    <div className="hidden sm:block">
-                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Logistics Center</p>
-                      <p className="text-sm font-black text-slate-700 dark:text-slate-300">Mumbai Hub - 40001</p>
-                    </div>
-                 </div>
-                 <div className="flex flex-col items-end">
-                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Elite Reference</p>
-                    <div className="bg-slate-950 text-white px-4 py-1.5 rounded-xl text-[10px] font-black tracking-widest border border-white/10 group-hover:bg-red-600 transition-colors">
-                      #{order.id.split('-')[1]}
-                    </div>
-                 </div>
-              </div>
-
-              <div className="p-10">
-                <div className="flex items-center space-x-4 mb-10">
-                   <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.5)]"></div>
-                   <h3 className="font-black text-slate-950 dark:text-white text-2xl tracking-tighter">Hyper Logistics in Transit</h3>
+          {userOrders.map(order => {
+            const { progressPercent } = getTrackingSteps(order.status);
+            return (
+              <div key={order.id} className="bg-white dark:bg-slate-900 rounded-[3.5rem] border border-slate-100 dark:border-white/5 shadow-2xl shadow-red-500/5 overflow-hidden transition-all duration-300 group">
+                <div className="bg-slate-50/50 dark:bg-slate-800/20 px-10 py-8 flex flex-wrap justify-between items-center gap-8 border-b border-slate-50 dark:border-white/5">
+                   <div className="flex items-center space-x-12">
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Order Finalized</p>
+                        <p className="text-sm font-black text-slate-900 dark:text-white">{new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Investment Total</p>
+                        <p className="text-sm font-black text-red-600 dark:text-red-400 uppercase tracking-tighter">₹{order.total.toLocaleString('en-IN')}</p>
+                      </div>
+                      <div className="hidden sm:block">
+                        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Logistics Center</p>
+                        <p className="text-sm font-black text-slate-700 dark:text-slate-300">Mumbai Hub - 40001</p>
+                      </div>
+                   </div>
+                   <div className="flex flex-col items-end">
+                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Elite Reference</p>
+                      <div className="bg-slate-950 text-white px-4 py-1.5 rounded-xl text-[10px] font-black tracking-widest border border-white/10 group-hover:bg-red-600 transition-colors">
+                        #{order.id.split('-')[1]}
+                      </div>
+                   </div>
                 </div>
 
-                <div className="space-y-8">
-                  {order.items.map(item => (
-                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 group/item">
-                      <div className="flex items-start space-x-8">
-                        <img src={item.image} className="w-28 h-28 rounded-[2rem] object-cover border border-slate-100 dark:border-white/5 shadow-xl group-hover/item:scale-105 transition-transform" />
-                        <div className="space-y-1">
-                          <Link to={`/product/${item.id}`} className="text-xl font-black text-slate-950 dark:text-white hover:text-red-600 dark:hover:text-red-400 transition-colors tracking-tight">{item.name}</Link>
-                          <p className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest">{item.category}</p>
-                          <p className="text-red-600/80 dark:text-red-400/80 text-xs font-bold mt-2">Quantity: {item.quantity} Units</p>
+                <div className="p-10 space-y-10">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="flex items-center space-x-4">
+                       <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.5)]"></div>
+                       <h3 className="font-black text-slate-950 dark:text-white text-2xl tracking-tighter">
+                         {order.status === 'DELIVERED' ? 'Successfully Received' : 'Hyper Logistics in Transit'}
+                       </h3>
+                    </div>
+                    {/* Compact list progress bar */}
+                    <div className="w-full md:w-64 space-y-2">
+                      <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest text-slate-400">
+                        <span>Progress</span>
+                        <span className="text-red-600">{Math.round(progressPercent)}%</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-red-600 transition-all duration-700 shadow-[0_0_10px_rgba(220,38,38,0.4)]"
+                          style={{ width: `${progressPercent}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                    {order.items.map(item => (
+                      <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 group/item">
+                        <div className="flex items-start space-x-8">
+                          <img src={item.image} className="w-28 h-28 rounded-[2rem] object-cover border border-slate-100 dark:border-white/5 shadow-xl group-hover/item:scale-105 transition-transform" />
+                          <div className="space-y-1">
+                            <Link to={`/product/${item.id}`} className="text-xl font-black text-slate-950 dark:text-white hover:text-red-600 dark:hover:text-red-400 transition-colors tracking-tight">{item.name}</Link>
+                            <p className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest">{item.category}</p>
+                            <p className="text-red-600/80 dark:text-red-400/80 text-xs font-bold mt-2">Quantity: {item.quantity} Units</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4 self-end sm:self-center">
+                           <button 
+                            onClick={() => handleReorder([item])}
+                            className="bg-red-600 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-red-200 dark:shadow-none hover:bg-red-700 transition-all active:scale-95"
+                           >
+                            Re-Order
+                           </button>
+                           <button 
+                            onClick={handleSupport}
+                            className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                           >
+                            Support
+                           </button>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-4 self-end sm:self-center">
-                         <button 
-                          onClick={() => handleReorder([item])}
-                          className="bg-red-600 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-red-200 dark:shadow-none hover:bg-red-700 transition-all active:scale-95"
-                         >
-                          Re-Order
-                         </button>
-                         <button 
-                          onClick={handleSupport}
-                          className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-                         >
-                          Support
-                         </button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-red-50/30 dark:bg-red-950/20 px-10 py-6 flex flex-wrap justify-between items-center gap-6">
+                   <div className="flex items-center text-[10px] font-black text-red-600/60 dark:text-red-400/60 uppercase tracking-[0.3em]">
+                      <i className="fa-solid fa-clock-rotate-left mr-3"></i>
+                      {order.status === 'DELIVERED' ? 'Delivery finalized' : 'Updates arriving in 24 hours'}
+                   </div>
+                   <button 
+                    onClick={() => setTrackingOrder(order)}
+                    className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest hover:text-red-600 flex items-center group"
+                   >
+                      Logistics Console 
+                      <i className="fa-solid fa-location-arrow ml-3 group-hover:translate-x-2 transition-transform"></i>
+                   </button>
                 </div>
               </div>
-
-              <div className="bg-red-50/30 dark:bg-red-950/20 px-10 py-6 flex flex-wrap justify-between items-center gap-6">
-                 <div className="flex items-center text-[10px] font-black text-red-600/60 dark:text-red-400/60 uppercase tracking-[0.3em]">
-                    <i className="fa-solid fa-clock-rotate-left mr-3"></i>
-                    Updates arriving in 24 hours
-                 </div>
-                 <button className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest hover:text-red-600 flex items-center group">
-                    Live Tracking Console 
-                    <i className="fa-solid fa-location-arrow ml-3 group-hover:translate-x-2 transition-transform"></i>
-                 </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="bg-white dark:bg-slate-900 p-24 rounded-[4rem] border border-red-50 dark:border-white/5 text-center shadow-[0_40px_100px_rgba(220,38,38,0.05)] transition-all duration-300">

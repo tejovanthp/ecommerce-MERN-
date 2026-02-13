@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../App.tsx';
 import { Product } from '../types.ts';
-import { getAdminInsights } from '../services/geminiService.ts';
 
 const AdminDashboard: React.FC = () => {
   const { products, orders, addProduct, updateProduct, deleteProduct, isOnline } = useStore();
@@ -19,16 +18,12 @@ const AdminDashboard: React.FC = () => {
     rating: 4.5
   });
 
-  const [insights, setInsights] = useState<string | null>(null);
-  const [loadingInsights, setLoadingInsights] = useState(false);
-
   const totalSales = orders.reduce((sum, o) => sum + o.total, 0);
   const lowStockCount = products.filter(p => p.stock < 10).length;
 
   useEffect(() => {
-    fetchInsights();
     checkConnectionDetails();
-  }, [isOnline, products.length, orders.length]); // Re-fetch if key stats change
+  }, [isOnline, products.length, orders.length]);
 
   const checkConnectionDetails = async () => {
     if (!isOnline) {
@@ -41,13 +36,6 @@ const AdminDashboard: React.FC = () => {
     } else {
       setConnectionError(null);
     }
-  };
-
-  const fetchInsights = async () => {
-    setLoadingInsights(true);
-    const result = await getAdminInsights(totalSales, orders.length, lowStockCount);
-    setInsights(result);
-    setLoadingInsights(false);
   };
 
   const handleEdit = (p: Product) => {
@@ -90,59 +78,6 @@ const AdminDashboard: React.FC = () => {
           <i className="fa-solid fa-plus-circle mr-3"></i> Add New Listing
         </button>
       </div>
-
-      {/* Crimson AI Executive Summary Section */}
-      <section className="bg-red-600 dark:bg-red-900 rounded-[3rem] p-8 md:p-12 text-white shadow-2xl shadow-red-500/20 relative overflow-hidden group">
-        <div className="absolute top-0 right-0 p-12 opacity-10 rotate-12 group-hover:rotate-0 transition-transform text-white">
-           <i className="fa-solid fa-wand-magic-sparkles text-[12rem]"></i>
-        </div>
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
-                <i className="fa-solid fa-robot text-xl"></i>
-              </div>
-              <div>
-                <h3 className="text-xs font-black uppercase tracking-[0.3em] text-red-100">Crimson AI Intelligence</h3>
-                <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Market & Inventory Analysis</p>
-              </div>
-            </div>
-            <button 
-              onClick={fetchInsights}
-              disabled={loadingInsights}
-              className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 transition-all disabled:opacity-50"
-            >
-              {loadingInsights ? <i className="fa-solid fa-circle-notch fa-spin mr-2"></i> : <i className="fa-solid fa-arrows-rotate mr-2"></i>}
-              Refresh Summary
-            </button>
-          </div>
-
-          <div className="max-w-4xl">
-            {loadingInsights ? (
-              <div className="space-y-4 animate-pulse">
-                <div className="h-4 bg-white/20 rounded w-3/4"></div>
-                <div className="h-4 bg-white/20 rounded w-1/2"></div>
-                <div className="h-4 bg-white/20 rounded w-2/3"></div>
-              </div>
-            ) : (
-              <p className="text-2xl md:text-3xl font-bold leading-tight tracking-tight italic">
-                "{insights || "Preparing executive brief for the latest session data..."}"
-              </p>
-            )}
-          </div>
-          
-          <div className="mt-8 flex items-center space-x-6">
-            <div className="flex items-center space-x-2 text-red-100/60 text-[10px] font-black uppercase tracking-widest">
-              <i className="fa-solid fa-check-double text-green-400"></i>
-              <span>Real-time Sync</span>
-            </div>
-            <div className="flex items-center space-x-2 text-red-100/60 text-[10px] font-black uppercase tracking-widest">
-              <i className="fa-solid fa-brain"></i>
-              <span>Gemini Pro Core</span>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

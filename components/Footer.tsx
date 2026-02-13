@@ -27,7 +27,7 @@ const Footer: React.FC = () => {
               mycart
             </Link>
             <p className="text-slate-500 text-sm leading-relaxed font-medium">
-              India's boldest destination for next-gen technology and luxury lifestyle. We merge AI power with human elegance to deliver unmatched shopping.
+              India's boldest destination for next-gen technology and luxury lifestyle. We deliver unmatched shopping experiences through human elegance and bold design.
             </p>
             <div className="flex space-x-4">
               <a href="#" className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center hover:bg-red-600 transition-all border border-white/5"><i className="fa-brands fa-facebook-f"></i></a>
