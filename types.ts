@@ -3,6 +3,8 @@ export type UserRole = 'USER' | 'ADMIN';
 
 export interface User {
   id: string;
+  // Added _id to support MongoDB compatibility and resolve TypeScript property errors
+  _id?: string;
   name: string;
   email: string;
   role: UserRole;

@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 
 interface Message {
@@ -16,11 +16,10 @@ const Chatbot: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   
-  // Use a ref to store the chat history in the format expected by the API
   const historyRef = useRef<{ role: string; parts: { text: string }[] }[]>([]);
 
   const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: "auto" });
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -33,31 +32,40 @@ const Chatbot: React.FC = () => {
     if (!input.trim() || isLoading) return;
 
     const userMsg = input.trim();
+    const apiKey = process.env.API_KEY;
+
     setInput('');
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setIsLoading(true);
 
+    if (!apiKey) {
+      setTimeout(() => {
+        setMessages(prev => [...prev, { 
+          role: 'bot', 
+          text: "System Offline: The Crimson AI link is missing an API_KEY. Please configure your environment variables to activate this feature." 
+        }]);
+        setIsLoading(false);
+      }, 1000);
+      return;
+    }
+
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       
-      // Initialize a new chat session with the full history
       const chat = ai.chats.create({
         model: 'gemini-3-pro-preview',
         config: {
-          systemInstruction: "You are 'Crimson Pro AI', the elite luxury concierge for 'mycart' e-commerce. Your tone is sophisticated, professional, and slightly futuristic. You have deep knowledge of premium products and lifestyle. Always highlight our 'Crimson Excellence' culture: Free global logistics for elite members and our signature 7-day White-Glove returns. If users ask about fashion or tech, offer high-end style advice.",
+          systemInstruction: "You are 'Crimson Pro AI', the elite luxury concierge for 'mycart' e-commerce. Your tone is sophisticated, professional, and slightly futuristic. Always highlight our 'Crimson Excellence' culture: Free global logistics for elite members and our signature 7-day White-Glove returns.",
           temperature: 0.7,
         },
-        // Transform our local state to the API history format
         history: historyRef.current
       });
 
       const response = await chat.sendMessage({ message: userMsg });
       const botText = response.text || "I am currently re-calibrating my neural pathways. Please re-state your request.";
       
-      // Update local message state for UI
       setMessages(prev => [...prev, { role: 'bot', text: botText }]);
       
-      // Update the persistent history ref for the next turn
       historyRef.current = [
         ...historyRef.current,
         { role: 'user', parts: [{ text: userMsg }] },
@@ -66,7 +74,7 @@ const Chatbot: React.FC = () => {
 
     } catch (error) {
       console.error("Crimson AI Core Error:", error);
-      setMessages(prev => [...prev, { role: 'bot', text: "A temporary atmospheric interference has disrupted the AI link. Please attempt reconnection." }]);
+      setMessages(prev => [...prev, { role: 'bot', text: "A temporary atmospheric interference has disrupted the AI link. Please ensure your API_KEY is valid and try again." }]);
     } finally {
       setIsLoading(false);
     }
@@ -86,17 +94,17 @@ const Chatbot: React.FC = () => {
               <div>
                 <h3 className="font-black text-sm uppercase tracking-[0.2em] flex items-center">
                   Crimson Pro
-                  <span className="ml-2 bg-yellow-400 text-red-950 text-[8px] px-1.5 py-0.5 rounded font-black">PREVIEW</span>
+                  <span className="ml-2 bg-yellow-400 text-red-950 text-[8px] px-1.5 py-0.5 rounded font-black">ACTIVE</span>
                 </h3>
                 <p className="text-[9px] text-red-100 font-black uppercase tracking-[0.2em] flex items-center mt-1">
                   <span className="w-2 h-2 bg-green-400 rounded-full mr-2 shadow-[0_0_8px_rgba(74,222,128,0.8)]"></span>
-                  Pro-Logic Sync Active
+                  Link Sync Active
                 </p>
               </div>
             </div>
             <button 
               onClick={() => setIsOpen(false)} 
-              className="w-10 h-10 flex items-center justify-center rounded-2xl hover:bg-white/10 border border-white/5"
+              className="w-10 h-10 flex items-center justify-center rounded-2xl hover:bg-white/10 border border-white/5 transition-colors"
             >
               <i className="fa-solid fa-chevron-down"></i>
             </button>
@@ -105,7 +113,7 @@ const Chatbot: React.FC = () => {
           {/* Message Area */}
           <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar bg-slate-50/50 dark:bg-black/40">
             {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}>
                 <div className={`max-w-[85%] px-6 py-4 rounded-[2rem] text-sm font-semibold shadow-xl border ${
                   m.role === 'user' 
                   ? 'bg-red-600 text-white rounded-tr-none border-red-500' 
@@ -116,14 +124,14 @@ const Chatbot: React.FC = () => {
               </div>
             ))}
             {isLoading && (
-              <div className="flex justify-start">
+              <div className="flex justify-start animate-pulse">
                 <div className="bg-white dark:bg-slate-800 px-6 py-4 rounded-3xl rounded-tl-none border border-red-50 dark:border-white/5 flex items-center space-x-3">
                   <div className="flex space-x-1">
-                    <div className="w-1.5 h-1.5 bg-red-600 rounded-full"></div>
-                    <div className="w-1.5 h-1.5 bg-red-600 rounded-full"></div>
-                    <div className="w-1.5 h-1.5 bg-red-600 rounded-full"></div>
+                    <div className="w-1.5 h-1.5 bg-red-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-1.5 h-1.5 bg-red-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-1.5 h-1.5 bg-red-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                   </div>
-                  <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">Analyzing...</span>
+                  <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">Processing...</span>
                 </div>
               </div>
             )}
@@ -140,13 +148,13 @@ const Chatbot: React.FC = () => {
                 onChange={e => setInput(e.target.value)}
                 onKeyPress={e => e.key === 'Enter' && handleSend()}
                 disabled={isLoading}
-                className="w-full bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-100 dark:border-white/5 outline-none px-7 py-5 rounded-[1.8rem] text-sm font-bold placeholder-slate-400 focus:ring-4 focus:ring-red-600/5 disabled:opacity-50"
+                className="w-full bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-100 dark:border-white/5 outline-none px-7 py-5 rounded-[1.8rem] text-sm font-bold placeholder-slate-400 focus:ring-4 focus:ring-red-600/5 disabled:opacity-50 transition-all"
               />
             </div>
             <button 
               onClick={handleSend}
               disabled={isLoading || !input.trim()}
-              className="bg-red-600 text-white w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-red-500/30 dark:shadow-none disabled:opacity-50"
+              className="bg-red-600 text-white w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-red-500/30 dark:shadow-none disabled:opacity-50 hover:bg-red-700 transition-all active:scale-90"
             >
               <i className="fa-solid fa-arrow-up text-lg"></i>
             </button>
@@ -157,15 +165,16 @@ const Chatbot: React.FC = () => {
       {/* Floating Toggle Button */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-20 h-20 rounded-[2.5rem] flex items-center justify-center shadow-2xl group relative border-4 border-white dark:border-slate-800 ${
+        className={`w-20 h-20 rounded-[2.5rem] flex items-center justify-center shadow-2xl group relative border-4 border-white dark:border-slate-800 transition-all duration-300 ${
           isOpen 
-          ? 'bg-slate-900 text-white' 
-          : 'bg-red-600 text-white shadow-red-500/40'
+          ? 'bg-slate-900 text-white rotate-90 scale-110' 
+          : 'bg-red-600 text-white shadow-red-500/40 hover:scale-105 active:scale-95'
         }`}
       >
         <i className={`fa-solid ${isOpen ? 'fa-xmark' : 'fa-robot'} text-3xl`}></i>
         {!isOpen && (
           <span className="absolute -top-1 -right-1 flex h-6 w-6">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-6 w-6 bg-yellow-500 border-2 border-red-600"></span>
           </span>
         )}

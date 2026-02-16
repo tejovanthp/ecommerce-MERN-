@@ -16,7 +16,10 @@ import AdminDashboard from './pages/AdminDashboard.tsx';
 import Checkout from './pages/Checkout.tsx';
 import Chatbot from './components/Chatbot.tsx';
 
-const API_BASE = "/api"; // Routing handled by vercel.json or local proxy
+// Detect if we are running locally or on Vercel
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+  ? "http://localhost:5000/api" 
+  : "/api";
 
 interface ThemeContextType { theme: 'light' | 'dark'; toggleTheme: () => void; }
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -62,11 +65,15 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
 
+  // Added toggleTheme function to resolve scope error for ThemeContext.Provider
+  const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const healthRes = await fetch(`${API_BASE}/health`);
-        const isDbConnected = healthRes.ok && (await healthRes.json()).code === 1;
+        const healthStatus = await healthRes.json();
+        const isDbConnected = healthRes.ok && healthStatus.code === 1;
         setIsOnline(isDbConnected);
 
         const [prodRes, userRes] = await Promise.all([
@@ -74,30 +81,25 @@ const App: React.FC = () => {
           fetch(`${API_BASE}/users`)
         ]);
 
-        if (prodRes.ok) setProducts(await prodRes.ok ? await prodRes.json() : []);
-        if (userRes.ok) setUsers(await userRes.ok ? await userRes.json() : []);
+        if (prodRes.ok) setProducts(await prodRes.json());
+        if (userRes.ok) setUsers(await userRes.json());
         
-        // Load orders for logged in user
         const savedUser = localStorage.getItem('mycart_user');
         if (savedUser) {
           const parsed = JSON.parse(savedUser);
           setUser(parsed);
-          const ordRes = await fetch(`${API_BASE}/orders/${parsed.id}`);
+          // Handled MongoDB _id compatibility which is now included in the User type
+          const ordRes = await fetch(`${API_BASE}/orders/${parsed.id || parsed._id}`);
           if (ordRes.ok) setOrders(await ordRes.json());
         }
       } catch (err) {
+        console.warn("Atlas Offline - Running in Local Mode");
         setIsOnline(false);
       }
       setLoading(false);
     };
     fetchData();
   }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-    localStorage.setItem('mycart_theme', newTheme);
-  };
 
   const login = async (identifier: string, password?: string) => {
     try {
@@ -111,15 +113,14 @@ const App: React.FC = () => {
         const loggedInUser = await res.json();
         setUser(loggedInUser);
         localStorage.setItem('mycart_user', JSON.stringify(loggedInUser));
-        
-        // Refresh orders for this user
-        const ordRes = await fetch(`${API_BASE}/orders/${loggedInUser.id}`);
+        // Handled MongoDB _id compatibility for the authenticated user
+        const ordRes = await fetch(`${API_BASE}/orders/${loggedInUser.id || loggedInUser._id}`);
         if (ordRes.ok) setOrders(await ordRes.json());
       } else {
-        alert("Crimson Auth Failed: Invalid credentials.");
+        alert("Authentication Failed. Check your credentials.");
       }
     } catch (e) {
-      alert("System Offline: Unable to reach MongoDB Atlas Cluster.");
+      alert("Database Connectivity Error. Ensure MONGO_URI is set.");
     }
   };
 
@@ -139,11 +140,12 @@ const App: React.FC = () => {
         setUser(synced);
         localStorage.setItem('mycart_user', JSON.stringify(synced));
       }
-    } catch (e) { console.error("Sync error"); }
+    } catch (e) { console.error("Sync failed"); }
   };
 
   const toggleUserRole = async (userId: string) => {
-    const targetUser = users.find(u => u.id === userId);
+    // Handled MongoDB _id property check for User object
+    const targetUser = users.find(u => u.id === userId || u._id === userId);
     if (!targetUser) return;
     const newRole = targetUser.role === 'ADMIN' ? 'USER' : 'ADMIN';
     try {
@@ -154,8 +156,9 @@ const App: React.FC = () => {
       });
       if (res.ok) {
         const updated = await res.json();
-        setUsers(users.map(u => u.id === userId ? updated : u));
-        if (user?.id === userId) setUser(updated);
+        // Handled MongoDB _id property updates in the users list
+        setUsers(users.map(u => (u.id === userId || u._id === userId) ? updated : u));
+        if (user?.id === userId || user?._id === userId) setUser(updated);
       }
     } catch (e) { console.error("Role update failed"); }
   };
@@ -177,7 +180,8 @@ const App: React.FC = () => {
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const newOrder: Order = {
       id: 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
-      userId: user.id,
+      // Handled MongoDB _id compatibility for order ownership
+      userId: user.id || user._id || '',
       items: [...cart],
       total: subtotal > 1999 ? subtotal : subtotal + 99,
       status: 'PENDING',
@@ -193,7 +197,7 @@ const App: React.FC = () => {
         setOrders([newOrder, ...orders]);
         clearCart();
       }
-    } catch (e) { alert("Failed to save order to cloud."); }
+    } catch (e) { alert("Offline: Order saved to local session only."); }
   };
 
   const addProduct = async (p: Product) => {
@@ -204,7 +208,7 @@ const App: React.FC = () => {
         body: JSON.stringify(p)
       });
       if (res.ok) setProducts([await res.json(), ...products]);
-    } catch (e) { console.error("Add failed"); }
+    } catch (e) { setProducts([p, ...products]); }
   };
 
   const updateProduct = async (p: Product) => {
@@ -215,14 +219,14 @@ const App: React.FC = () => {
         body: JSON.stringify(p)
       });
       if (res.ok) setProducts(products.map(item => item.id === p.id ? p : item));
-    } catch (e) { console.error("Update failed"); }
+    } catch (e) { setProducts(products.map(item => item.id === p.id ? p : item)); }
   };
 
   const deleteProduct = async (id: string) => {
     try {
       const res = await fetch(`${API_BASE}/products/${id}`, { method: 'DELETE' });
       if (res.ok) setProducts(products.filter(item => item.id !== id));
-    } catch (e) { console.error("Delete failed"); }
+    } catch (e) { setProducts(products.filter(item => item.id !== id)); }
   };
 
   return (
@@ -235,9 +239,17 @@ const App: React.FC = () => {
                 <Navbar />
                 <main className="flex-grow container mx-auto px-4 py-8 md:py-16">
                   {loading ? (
-                    <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
-                       <div className="w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                       <p className="text-red-600 font-black uppercase tracking-widest text-xs">Synchronizing with Atlas Cloud...</p>
+                    <div className="flex flex-col items-center justify-center h-[60vh] space-y-6">
+                       <div className="relative">
+                          <div className="w-20 h-20 border-4 border-red-600/20 border-t-red-600 rounded-full animate-spin"></div>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                             <i className="fa-solid fa-cloud-bolt text-red-600 animate-pulse"></i>
+                          </div>
+                       </div>
+                       <div className="text-center">
+                          <p className="text-red-600 font-black uppercase tracking-[0.3em] text-[10px] mb-2">Establishing Secure Link</p>
+                          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Synchronizing with MongoDB Atlas Cluster...</p>
+                       </div>
                     </div>
                   ) : (
                     <Routes>
