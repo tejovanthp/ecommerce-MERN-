@@ -2,7 +2,6 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { User, Product, CartItem, Order, UserRole } from './types.ts';
-import { INITIAL_PRODUCTS } from './constants.ts';
 import Navbar from './components/Navbar.tsx';
 import Footer from './components/Footer.tsx';
 import Home from './pages/Home.tsx';
@@ -15,17 +14,23 @@ import Login from './pages/Login.tsx';
 import Signup from './pages/Signup.tsx';
 import AdminDashboard from './pages/AdminDashboard.tsx';
 import Checkout from './pages/Checkout.tsx';
+import Chatbot from './components/Chatbot.tsx';
 
-// Improved API_BASE detection: use relative path for production
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-  ? "http://localhost:5000/api" 
-  : "/api";
+const API_BASE = "/api"; // Routing handled by vercel.json or local proxy
 
 interface ThemeContextType { theme: 'light' | 'dark'; toggleTheme: () => void; }
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const useTheme = () => { const context = useContext(ThemeContext); if (!context) throw new Error("useTheme error"); return context; };
 
-interface AuthContextType { user: User | null; login: (email: string, role: UserRole) => void; logout: () => void; updateUser: (data: Partial<User>) => void; isAdmin: boolean; }
+interface AuthContextType { 
+  user: User | null; 
+  users: User[];
+  login: (identifier: string, password?: string) => Promise<void>; 
+  logout: () => void; 
+  updateUser: (data: Partial<User>) => Promise<void>; 
+  toggleUserRole: (userId: string) => Promise<void>;
+  isAdmin: boolean; 
+}
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => { const context = useContext(AuthContext); if (!context) throw new Error("useAuth error"); return context; };
 
@@ -50,7 +55,8 @@ export const useStore = () => { const context = useContext(StoreContext); if (!c
 const App: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [user, setUser] = useState<User | null>(null);
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [users, setUsers] = useState<User[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,38 +66,31 @@ const App: React.FC = () => {
     const fetchData = async () => {
       try {
         const healthRes = await fetch(`${API_BASE}/health`);
-        if (healthRes.ok) {
-          const healthData = await healthRes.json();
-          setIsOnline(healthData.code === 1);
-        }
+        const isDbConnected = healthRes.ok && (await healthRes.json()).code === 1;
+        setIsOnline(isDbConnected);
 
-        const prodRes = await fetch(`${API_BASE}/products`);
-        if (prodRes.ok) {
-          const prodData = await prodRes.json();
-          setProducts(prodData.length > 0 ? prodData : INITIAL_PRODUCTS);
-        } else {
-          const savedProducts = localStorage.getItem('mycart_products');
-          if (savedProducts) setProducts(JSON.parse(savedProducts));
+        const [prodRes, userRes] = await Promise.all([
+          fetch(`${API_BASE}/products`),
+          fetch(`${API_BASE}/users`)
+        ]);
+
+        if (prodRes.ok) setProducts(await prodRes.ok ? await prodRes.json() : []);
+        if (userRes.ok) setUsers(await userRes.ok ? await userRes.json() : []);
+        
+        // Load orders for logged in user
+        const savedUser = localStorage.getItem('mycart_user');
+        if (savedUser) {
+          const parsed = JSON.parse(savedUser);
+          setUser(parsed);
+          const ordRes = await fetch(`${API_BASE}/orders/${parsed.id}`);
+          if (ordRes.ok) setOrders(await ordRes.json());
         }
       } catch (err) {
         setIsOnline(false);
-        const savedProducts = localStorage.getItem('mycart_products');
-        if (savedProducts) setProducts(JSON.parse(savedProducts));
       }
-
-      const savedOrders = localStorage.getItem('mycart_orders');
-      if (savedOrders) setOrders(JSON.parse(savedOrders));
-
       setLoading(false);
     };
     fetchData();
-  }, []);
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('mycart_theme') as 'light' | 'dark' || 'dark';
-    setTheme(savedTheme);
-    const savedUser = localStorage.getItem('mycart_user');
-    if (savedUser) setUser(JSON.parse(savedUser));
   }, []);
 
   const toggleTheme = () => {
@@ -100,19 +99,65 @@ const App: React.FC = () => {
     localStorage.setItem('mycart_theme', newTheme);
   };
 
-  const login = (email: string, role: UserRole) => {
-    const newUser = { id: email, name: email.split('@')[0], email, role, avatar: `https://ui-avatars.com/api/?name=${email}&background=dc2626&color=fff` };
-    setUser(newUser);
-    localStorage.setItem('mycart_user', JSON.stringify(newUser));
+  const login = async (identifier: string, password?: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, password })
+      });
+
+      if (res.ok) {
+        const loggedInUser = await res.json();
+        setUser(loggedInUser);
+        localStorage.setItem('mycart_user', JSON.stringify(loggedInUser));
+        
+        // Refresh orders for this user
+        const ordRes = await fetch(`${API_BASE}/orders/${loggedInUser.id}`);
+        if (ordRes.ok) setOrders(await ordRes.json());
+      } else {
+        alert("Crimson Auth Failed: Invalid credentials.");
+      }
+    } catch (e) {
+      alert("System Offline: Unable to reach MongoDB Atlas Cluster.");
+    }
   };
 
-  const logout = () => { setUser(null); localStorage.removeItem('mycart_user'); };
+  const logout = () => { setUser(null); localStorage.removeItem('mycart_user'); setOrders([]); };
 
-  const updateUser = (data: Partial<User>) => {
+  const updateUser = async (data: Partial<User>) => {
     if (!user) return;
     const updated = { ...user, ...data };
-    setUser(updated);
-    localStorage.setItem('mycart_user', JSON.stringify(updated));
+    try {
+      const res = await fetch(`${API_BASE}/users/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+      if (res.ok) {
+        const synced = await res.json();
+        setUser(synced);
+        localStorage.setItem('mycart_user', JSON.stringify(synced));
+      }
+    } catch (e) { console.error("Sync error"); }
+  };
+
+  const toggleUserRole = async (userId: string) => {
+    const targetUser = users.find(u => u.id === userId);
+    if (!targetUser) return;
+    const newRole = targetUser.role === 'ADMIN' ? 'USER' : 'ADMIN';
+    try {
+      const res = await fetch(`${API_BASE}/users/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...targetUser, role: newRole })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setUsers(users.map(u => u.id === userId ? updated : u));
+        if (user?.id === userId) setUser(updated);
+      }
+    } catch (e) { console.error("Role update failed"); }
   };
 
   const addToCart = (product: Product) => {
@@ -129,70 +174,60 @@ const App: React.FC = () => {
 
   const placeOrder = async () => {
     if (cart.length === 0 || !user) return;
-    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const newOrder: Order = {
       id: 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
       userId: user.id,
       items: [...cart],
-      total: total > 1999 ? total : total + 99,
+      total: subtotal > 1999 ? subtotal : subtotal + 99,
       status: 'PENDING',
       createdAt: new Date().toISOString()
     };
-
     try {
-      await fetch(`${API_BASE}/orders`, {
+      const res = await fetch(`${API_BASE}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newOrder)
       });
-    } catch (e) {
-      console.warn("Order saved locally (server offline)");
-    }
-
-    const updatedOrders = [newOrder, ...orders];
-    setOrders(updatedOrders);
-    localStorage.setItem('mycart_orders', JSON.stringify(updatedOrders));
-    clearCart();
+      if (res.ok) {
+        setOrders([newOrder, ...orders]);
+        clearCart();
+      }
+    } catch (e) { alert("Failed to save order to cloud."); }
   };
 
-  const addProduct = async (p: any) => {
-    const newProducts = [p, ...products];
-    setProducts(newProducts);
-    localStorage.setItem('mycart_products', JSON.stringify(newProducts));
+  const addProduct = async (p: Product) => {
     try {
-      await fetch(`${API_BASE}/products`, {
+      const res = await fetch(`${API_BASE}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(p)
       });
-    } catch (e) { console.warn("Product added locally (server offline)"); }
+      if (res.ok) setProducts([await res.json(), ...products]);
+    } catch (e) { console.error("Add failed"); }
   };
 
-  const updateProduct = async (p: any) => {
-    const updated = products.map(item => item.id === p.id ? p : item);
-    setProducts(updated);
-    localStorage.setItem('mycart_products', JSON.stringify(updated));
+  const updateProduct = async (p: Product) => {
     try {
-      await fetch(`${API_BASE}/products/${p.id}`, {
+      const res = await fetch(`${API_BASE}/products/${p.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(p)
       });
-    } catch (e) { console.warn("Product updated locally (server offline)"); }
+      if (res.ok) setProducts(products.map(item => item.id === p.id ? p : item));
+    } catch (e) { console.error("Update failed"); }
   };
 
   const deleteProduct = async (id: string) => {
-    const filtered = products.filter(item => item.id !== id);
-    setProducts(filtered);
-    localStorage.setItem('mycart_products', JSON.stringify(filtered));
     try {
-      await fetch(`${API_BASE}/products/${id}`, { method: 'DELETE' });
-    } catch (e) { console.warn("Product deleted locally (server offline)"); }
+      const res = await fetch(`${API_BASE}/products/${id}`, { method: 'DELETE' });
+      if (res.ok) setProducts(products.filter(item => item.id !== id));
+    } catch (e) { console.error("Delete failed"); }
   };
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      <AuthContext.Provider value={{ user, login, logout, updateUser, isAdmin: user?.role === 'ADMIN' }}>
+      <AuthContext.Provider value={{ user, users, login, logout, updateUser, toggleUserRole, isAdmin: user?.role === 'ADMIN' }}>
         <StoreContext.Provider value={{ products, orders, cart, loading, isOnline, addToCart, removeFromCart, updateCartQuantity, clearCart, placeOrder, addProduct, updateProduct, deleteProduct }}>
           <div className={`${theme}`}>
             <HashRouter>
@@ -202,7 +237,7 @@ const App: React.FC = () => {
                   {loading ? (
                     <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
                        <div className="w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                       <p className="text-red-600 font-black uppercase tracking-widest text-xs">Accessing mycart Vault...</p>
+                       <p className="text-red-600 font-black uppercase tracking-widest text-xs">Synchronizing with Atlas Cloud...</p>
                     </div>
                   ) : (
                     <Routes>
@@ -220,6 +255,7 @@ const App: React.FC = () => {
                   )}
                 </main>
                 <Footer />
+                <Chatbot />
               </div>
             </HashRouter>
           </div>

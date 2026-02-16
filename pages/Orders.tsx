@@ -28,15 +28,14 @@ const Orders: React.FC = () => {
     const steps = [
       { label: 'Confirmed', icon: 'fa-check-double', date: 'Day 1, 09:00 AM' },
       { label: 'Processing', icon: 'fa-microchip', date: 'Day 1, 02:30 PM' },
-      { label: 'Dispatched', icon: 'fa-box-open', date: 'Day 2, 10:15 AM' },
-      { label: 'In Transit', icon: 'fa-plane-up', date: 'In Progress' },
+      { label: 'Shipped', icon: 'fa-box-open', date: 'Day 2, 10:15 AM' },
       { label: 'Delivered', icon: 'fa-house-chimney-check', date: 'Pending' }
     ];
 
     const statusMap: Record<string, number> = {
-      'PENDING': 2, 
-      'SHIPPED': 4, 
-      'DELIVERED': 5, 
+      'PENDING': 2, // Confirmed -> Processing
+      'SHIPPED': 3, // -> Shipped
+      'DELIVERED': 4, // -> Delivered
       'CANCELLED': 0
     };
 
@@ -55,7 +54,7 @@ const Orders: React.FC = () => {
           className="flex items-center text-slate-400 hover:text-red-600 font-black text-xs uppercase tracking-widest mb-12 transition-colors group"
         >
           <i className="fa-solid fa-arrow-left mr-3 group-hover:-translate-x-2 transition-transform"></i> 
-          Back to Archives
+          Back to Order Archives
         </button>
 
         <div className="bg-white dark:bg-slate-900 rounded-[3.5rem] border border-red-50 dark:border-white/5 shadow-2xl overflow-hidden">
@@ -70,17 +69,17 @@ const Orders: React.FC = () => {
                </div>
                <div className="bg-white/10 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20">
                   <p className="text-[10px] font-black uppercase tracking-widest text-red-100 mb-1">Estimated Arrival</p>
-                  <p className="text-xl font-black">Tomorrow, by 8:00 PM</p>
+                  <p className="text-xl font-black">Within 48 Hours</p>
                </div>
             </div>
           </div>
 
           <div className="p-12 space-y-16">
-             {/* Enhanced Horizontal Progress Bar with Checkpoints */}
+             {/* Dynamic Horizontal Progress Bar with Checkpoints */}
              <div className="space-y-10">
                 <div className="flex justify-between items-center mb-2 px-1">
                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Deployment Progress</p>
-                   <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">{Math.round(progressPercent)}% Secure</p>
+                   <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">{Math.round(progressPercent)}% Fulfilled</p>
                 </div>
                 
                 <div className="relative pt-6">
@@ -97,14 +96,15 @@ const Orders: React.FC = () => {
                   <div className="relative flex justify-between">
                     {steps.map((step, idx) => {
                       const active = idx < current;
+                      const isCurrent = idx === current - 1;
                       return (
                         <div key={idx} className="flex flex-col items-center">
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm shadow-lg transition-all duration-500 z-10 ${
                             active ? 'bg-red-600 text-white border-2 border-white dark:border-slate-900' : 'bg-slate-50 dark:bg-slate-800 text-slate-300 border-2 border-slate-100 dark:border-white/5'
-                          }`}>
+                          } ${isCurrent && trackingOrder.status !== 'DELIVERED' ? 'animate-pulse ring-4 ring-red-600/20' : ''}`}>
                             <i className={`fa-solid ${step.icon}`}></i>
                           </div>
-                          <span className={`text-[8px] font-black uppercase tracking-widest mt-4 ${active ? 'text-red-600' : 'text-slate-400'}`}>
+                          <span className={`text-[8px] font-black uppercase tracking-widest mt-4 ${active ? 'text-red-600 dark:text-red-400' : 'text-slate-400'}`}>
                             {step.label}
                           </span>
                         </div>
@@ -115,7 +115,7 @@ const Orders: React.FC = () => {
              </div>
 
              <div className="relative">
-                {/* Vertical Line */}
+                {/* Vertical Visual Line for Details */}
                 <div className="absolute left-6 top-0 bottom-0 w-1 bg-slate-100 dark:bg-slate-800 rounded-full"></div>
                 <div 
                   className="absolute left-6 top-0 w-1 bg-red-600 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(220,38,38,0.5)]"
@@ -133,17 +133,17 @@ const Orders: React.FC = () => {
                             isCurrent ? 'bg-white dark:bg-slate-800 text-red-600 border-2 border-red-600 ring-4 ring-red-600/10' : 
                             'bg-slate-100 dark:bg-slate-800 text-slate-400'
                           }`}>
-                             <i className={`fa-solid ${step.icon} ${isCurrent ? 'animate-bounce' : ''}`}></i>
+                             <i className={`fa-solid ${step.icon} ${isCurrent && trackingOrder.status !== 'DELIVERED' ? 'animate-bounce' : ''}`}></i>
                           </div>
                           <div>
                              <h4 className={`text-xl font-black tracking-tight ${isCurrent ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>
                                {step.label}
                              </h4>
-                             <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">{step.date}</p>
-                             {isCurrent && (
+                             <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">{isCompleted ? step.date : 'Estimated Stage'}</p>
+                             {isCurrent && trackingOrder.status !== 'DELIVERED' && (
                                <div className="mt-4 p-4 bg-red-50 dark:bg-red-950/20 rounded-2xl border border-red-100 dark:border-white/5 animate-in slide-in-from-left-2">
-                                  <p className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-widest mb-1">Live Update</p>
-                                  <p className="text-slate-700 dark:text-slate-300 text-sm font-medium italic">"Package successfully passed through the Crimson Mumbai hub. Scanning for final route assignment."</p>
+                                  <p className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-widest mb-1">Live Feed</p>
+                                  <p className="text-slate-700 dark:text-slate-300 text-sm font-medium italic">"The order is currently at our central hub processing facility. Scanning and safety verification are underway."</p>
                                </div>
                              )}
                           </div>
@@ -160,8 +160,8 @@ const Orders: React.FC = () => {
                    <i className="fa-solid fa-truck-ramp-box text-red-600 text-xl"></i>
                 </div>
                 <div>
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Logistics Partner</p>
-                   <p className="font-black text-slate-900 dark:text-white">Crimson Global Express (Premium)</p>
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Carrier</p>
+                   <p className="font-black text-slate-900 dark:text-white">Crimson Express Premium Logistics</p>
                 </div>
              </div>
              <button 
@@ -190,8 +190,8 @@ const Orders: React.FC = () => {
         </div>
         <div className="flex items-center space-x-4">
            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 px-6 py-3 rounded-2xl flex items-center space-x-3 shadow-lg">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-xs font-black uppercase text-slate-600 dark:text-slate-400 tracking-widest">{userOrders.length} Completed Orders</span>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs font-black uppercase text-slate-600 dark:text-slate-400 tracking-widest">{userOrders.length} Completed Acquisitions</span>
            </div>
         </div>
       </div>
@@ -199,7 +199,7 @@ const Orders: React.FC = () => {
       {userOrders.length > 0 ? (
         <div className="space-y-12">
           {userOrders.map(order => {
-            const { progressPercent } = getTrackingSteps(order.status);
+            const { steps, current, progressPercent } = getTrackingSteps(order.status);
             return (
               <div key={order.id} className="bg-white dark:bg-slate-900 rounded-[3.5rem] border border-slate-100 dark:border-white/5 shadow-2xl shadow-red-500/5 overflow-hidden transition-all duration-300 group">
                 <div className="bg-slate-50/50 dark:bg-slate-800/20 px-10 py-8 flex flex-wrap justify-between items-center gap-8 border-b border-slate-50 dark:border-white/5">
@@ -213,37 +213,42 @@ const Orders: React.FC = () => {
                         <p className="text-sm font-black text-red-600 dark:text-red-400 uppercase tracking-tighter">₹{order.total.toLocaleString('en-IN')}</p>
                       </div>
                       <div className="hidden sm:block">
-                        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Logistics Center</p>
-                        <p className="text-sm font-black text-slate-700 dark:text-slate-300">Mumbai Hub - 40001</p>
+                        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Hub Location</p>
+                        <p className="text-sm font-black text-slate-700 dark:text-slate-300">Mumbai Central - Crimson Hub</p>
                       </div>
                    </div>
                    <div className="flex flex-col items-end">
-                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Elite Reference</p>
+                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Reference Code</p>
                       <div className="bg-slate-950 text-white px-4 py-1.5 rounded-xl text-[10px] font-black tracking-widest border border-white/10 group-hover:bg-red-600 transition-colors">
                         #{order.id.split('-')[1]}
                       </div>
                    </div>
                 </div>
 
-                <div className="p-10 space-y-10">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="p-10 space-y-12">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
                     <div className="flex items-center space-x-4">
-                       <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.5)]"></div>
+                       <div className={`w-3 h-3 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.5)] ${order.status === 'DELIVERED' ? 'bg-green-500' : 'bg-red-600 animate-pulse'}`}></div>
                        <h3 className="font-black text-slate-950 dark:text-white text-2xl tracking-tighter">
-                         {order.status === 'DELIVERED' ? 'Successfully Received' : 'Hyper Logistics in Transit'}
+                         {order.status === 'DELIVERED' ? 'Deployment Successful' : 'Logistics in Transit'}
                        </h3>
                     </div>
-                    {/* Compact list progress bar */}
-                    <div className="w-full md:w-64 space-y-2">
-                      <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest text-slate-400">
-                        <span>Progress</span>
-                        <span className="text-red-600">{Math.round(progressPercent)}%</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+
+                    {/* Integrated dynamic progress indicator */}
+                    <div className="flex-1 max-w-lg space-y-4">
+                      <div className="relative h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                         <div 
-                          className="h-full bg-red-600 transition-all duration-700 shadow-[0_0_10px_rgba(220,38,38,0.4)]"
+                          className={`h-full bg-red-600 transition-all duration-1000 ease-out ${order.status === 'DELIVERED' ? 'bg-green-600' : ''}`}
                           style={{ width: `${progressPercent}%` }}
                         ></div>
+                      </div>
+                      <div className="flex justify-between">
+                         {steps.map((s, idx) => (
+                           <div key={idx} className="flex flex-col items-center">
+                              <div className={`w-2 h-2 rounded-full mb-2 transition-colors duration-500 ${idx < current ? 'bg-red-600 dark:bg-red-400' : 'bg-slate-200 dark:bg-slate-800'}`}></div>
+                              <span className={`text-[8px] font-black uppercase tracking-widest ${idx < current ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>{s.label}</span>
+                           </div>
+                         ))}
                       </div>
                     </div>
                   </div>
@@ -281,13 +286,13 @@ const Orders: React.FC = () => {
                 <div className="bg-red-50/30 dark:bg-red-950/20 px-10 py-6 flex flex-wrap justify-between items-center gap-6">
                    <div className="flex items-center text-[10px] font-black text-red-600/60 dark:text-red-400/60 uppercase tracking-[0.3em]">
                       <i className="fa-solid fa-clock-rotate-left mr-3"></i>
-                      {order.status === 'DELIVERED' ? 'Delivery finalized' : 'Updates arriving in 24 hours'}
+                      Updated 5 Minutes Ago
                    </div>
                    <button 
                     onClick={() => setTrackingOrder(order)}
                     className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest hover:text-red-600 flex items-center group"
                    >
-                      Logistics Console 
+                      Track Console 
                       <i className="fa-solid fa-location-arrow ml-3 group-hover:translate-x-2 transition-transform"></i>
                    </button>
                 </div>

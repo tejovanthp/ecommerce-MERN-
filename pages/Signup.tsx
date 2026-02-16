@@ -12,7 +12,7 @@ const Signup: React.FC = () => {
 
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
-    login(email, 'USER'); // Default to USER role
+    login(email);
     navigate('/');
   };
 

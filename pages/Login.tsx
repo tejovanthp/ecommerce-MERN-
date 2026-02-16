@@ -2,18 +2,16 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../App';
-import { UserRole } from '../types';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('USER');
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    login(email, role);
+    await login(email, password);
     navigate('/');
   };
 
@@ -30,11 +28,11 @@ const Login: React.FC = () => {
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div className="space-y-2">
-            <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Email Address</label>
+            <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Email / Username</label>
             <input 
-              type="email" 
+              type="text" 
               required
-              placeholder="name@example.com"
+              placeholder="Enter your identifier"
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="w-full bg-slate-50 dark:bg-slate-800 dark:text-white border border-transparent dark:border-white/5 rounded-2xl py-4 px-6 outline-none focus:ring-4 focus:ring-red-500/10 focus:border-red-600 transition-all font-bold"
@@ -51,29 +49,6 @@ const Login: React.FC = () => {
               className="w-full bg-slate-50 dark:bg-slate-800 dark:text-white border border-transparent dark:border-white/5 rounded-2xl py-4 px-6 outline-none focus:ring-4 focus:ring-red-500/10 focus:border-red-600 transition-all font-bold"
             />
           </div>
-          <div className="space-y-4">
-            <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center">Login As</label>
-            <div className="grid grid-cols-2 gap-4">
-              <button 
-                type="button"
-                onClick={() => setRole('USER')}
-                className={`py-3 rounded-xl font-black text-xs uppercase tracking-widest border-2 transition-all ${
-                  role === 'USER' ? 'border-red-600 bg-red-600 text-white shadow-lg' : 'border-red-50 dark:border-white/5 text-slate-400 dark:text-slate-600'
-                }`}
-              >
-                Customer
-              </button>
-              <button 
-                type="button"
-                onClick={() => setRole('ADMIN')}
-                className={`py-3 rounded-xl font-black text-xs uppercase tracking-widest border-2 transition-all ${
-                  role === 'ADMIN' ? 'border-red-600 bg-red-600 text-white shadow-lg' : 'border-red-50 dark:border-white/5 text-slate-400 dark:text-slate-600'
-                }`}
-              >
-                Administrator
-              </button>
-            </div>
-          </div>
 
           <button 
             type="submit"
@@ -83,7 +58,7 @@ const Login: React.FC = () => {
           </button>
         </form>
 
-        <p className="text-center text-slate-500 dark:text-slate-500 mt-10 text-sm font-bold">
+        <p className="text-center text-slate-500 dark:text-slate-500 mt-8 text-sm font-bold">
           New to mycart? <Link to="/signup" className="text-red-600 dark:text-red-400 font-black hover:underline">Create Account</Link>
         </p>
       </div>
