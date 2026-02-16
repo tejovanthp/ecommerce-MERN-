@@ -15,11 +15,19 @@ import Signup from './pages/Signup.tsx';
 import AdminDashboard from './pages/AdminDashboard.tsx';
 import Checkout from './pages/Checkout.tsx';
 import Chatbot from './components/Chatbot.tsx';
+import { INITIAL_PRODUCTS } from './constants.ts';
 
-// Detect if we are running locally or on Vercel
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
   ? "http://localhost:5000/api" 
   : "/api";
+
+// Helper for fetch with timeout
+const fetchWithTimeout = (url: string, options: any = {}, timeout = 3000) => {
+  return Promise.race([
+    fetch(url, options),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout))
+  ]) as Promise<Response>;
+};
 
 interface ThemeContextType { theme: 'light' | 'dark'; toggleTheme: () => void; }
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -59,46 +67,49 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
 
-  // Added toggleTheme function to resolve scope error for ThemeContext.Provider
   const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
 
   useEffect(() => {
-    const fetchData = async () => {
+    const initApp = async () => {
+      console.log("🚀 Syncing with Crimson Cloud Gate...");
       try {
-        const healthRes = await fetch(`${API_BASE}/health`);
+        // Use timeout to prevent sticking on splash screen
+        const healthRes = await fetchWithTimeout(`${API_BASE}/health`, {}, 3000);
         const healthStatus = await healthRes.json();
         const isDbConnected = healthRes.ok && healthStatus.code === 1;
         setIsOnline(isDbConnected);
 
-        const [prodRes, userRes] = await Promise.all([
-          fetch(`${API_BASE}/products`),
-          fetch(`${API_BASE}/users`)
-        ]);
+        if (isDbConnected) {
+          const [prodRes, userRes] = await Promise.all([
+            fetch(`${API_BASE}/products`),
+            fetch(`${API_BASE}/users`)
+          ]);
 
-        if (prodRes.ok) setProducts(await prodRes.json());
-        if (userRes.ok) setUsers(await userRes.json());
-        
-        const savedUser = localStorage.getItem('mycart_user');
-        if (savedUser) {
-          const parsed = JSON.parse(savedUser);
-          setUser(parsed);
-          // Handled MongoDB _id compatibility which is now included in the User type
-          const ordRes = await fetch(`${API_BASE}/orders/${parsed.id || parsed._id}`);
-          if (ordRes.ok) setOrders(await ordRes.json());
+          if (prodRes.ok) setProducts(await prodRes.json());
+          if (userRes.ok) setUsers(await userRes.json());
         }
       } catch (err) {
-        console.warn("Atlas Offline - Running in Local Mode");
+        console.warn("⚠️ Cloud Sync Timeout - Operating in Local Mode");
         setIsOnline(false);
+      } finally {
+        // Always clear loading after sync attempt or timeout
+        const savedUser = localStorage.getItem('mycart_user');
+        if (savedUser) {
+          try {
+            const parsed = JSON.parse(savedUser);
+            setUser(parsed);
+          } catch(e) {}
+        }
+        setLoading(false);
       }
-      setLoading(false);
     };
-    fetchData();
+    initApp();
   }, []);
 
   const login = async (identifier: string, password?: string) => {
@@ -113,14 +124,16 @@ const App: React.FC = () => {
         const loggedInUser = await res.json();
         setUser(loggedInUser);
         localStorage.setItem('mycart_user', JSON.stringify(loggedInUser));
-        // Handled MongoDB _id compatibility for the authenticated user
         const ordRes = await fetch(`${API_BASE}/orders/${loggedInUser.id || loggedInUser._id}`);
         if (ordRes.ok) setOrders(await ordRes.json());
       } else {
         alert("Authentication Failed. Check your credentials.");
       }
     } catch (e) {
-      alert("Database Connectivity Error. Ensure MONGO_URI is set.");
+      alert("Database Connectivity Error. Using local session.");
+      // Dummy login for local testing if server is down
+      const dummy = { id: 'user1', name: identifier, email: 'user@example.com', role: 'USER' as UserRole, avatar: 'https://ui-avatars.com/api/?name=User' };
+      setUser(dummy);
     }
   };
 
@@ -140,11 +153,10 @@ const App: React.FC = () => {
         setUser(synced);
         localStorage.setItem('mycart_user', JSON.stringify(synced));
       }
-    } catch (e) { console.error("Sync failed"); }
+    } catch (e) { setUser(updated); }
   };
 
   const toggleUserRole = async (userId: string) => {
-    // Handled MongoDB _id property check for User object
     const targetUser = users.find(u => u.id === userId || u._id === userId);
     if (!targetUser) return;
     const newRole = targetUser.role === 'ADMIN' ? 'USER' : 'ADMIN';
@@ -156,7 +168,6 @@ const App: React.FC = () => {
       });
       if (res.ok) {
         const updated = await res.json();
-        // Handled MongoDB _id property updates in the users list
         setUsers(users.map(u => (u.id === userId || u._id === userId) ? updated : u));
         if (user?.id === userId || user?._id === userId) setUser(updated);
       }
@@ -180,7 +191,6 @@ const App: React.FC = () => {
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const newOrder: Order = {
       id: 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
-      // Handled MongoDB _id compatibility for order ownership
       userId: user.id || user._id || '',
       items: [...cart],
       total: subtotal > 1999 ? subtotal : subtotal + 99,
@@ -197,7 +207,11 @@ const App: React.FC = () => {
         setOrders([newOrder, ...orders]);
         clearCart();
       }
-    } catch (e) { alert("Offline: Order saved to local session only."); }
+    } catch (e) { 
+      setOrders([newOrder, ...orders]);
+      clearCart();
+      alert("Note: Order saved locally as cloud link is slow."); 
+    }
   };
 
   const addProduct = async (p: Product) => {
@@ -239,16 +253,16 @@ const App: React.FC = () => {
                 <Navbar />
                 <main className="flex-grow container mx-auto px-4 py-8 md:py-16">
                   {loading ? (
-                    <div className="flex flex-col items-center justify-center h-[60vh] space-y-6">
+                    <div className="flex flex-col items-center justify-center h-[60vh] space-y-8 animate-in fade-in duration-700">
                        <div className="relative">
-                          <div className="w-20 h-20 border-4 border-red-600/20 border-t-red-600 rounded-full animate-spin"></div>
+                          <div className="w-24 h-24 border-4 border-red-600/10 border-t-red-600 rounded-full animate-spin"></div>
                           <div className="absolute inset-0 flex items-center justify-center">
-                             <i className="fa-solid fa-cloud-bolt text-red-600 animate-pulse"></i>
+                             <i className="fa-solid fa-microchip text-red-600 text-xl animate-pulse"></i>
                           </div>
                        </div>
                        <div className="text-center">
-                          <p className="text-red-600 font-black uppercase tracking-[0.3em] text-[10px] mb-2">Establishing Secure Link</p>
-                          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Synchronizing with MongoDB Atlas Cluster...</p>
+                          <p className="text-red-600 font-black uppercase tracking-[0.4em] text-[10px] mb-3">Neural Link Syncing</p>
+                          <p className="text-slate-500 font-bold text-xs uppercase tracking-widest max-w-[200px] mx-auto leading-loose">Accessing MongoDB Atlas Global Cluster...</p>
                        </div>
                     </div>
                   ) : (
