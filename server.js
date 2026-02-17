@@ -8,28 +8,31 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// --- Database Connection ---
-const MONGO_URI = process.env.MONGO_URI;
+// --- Database Connection Pooling for Serverless ---
+let cachedDb = null;
 
-if (!MONGO_URI) {
-  console.error("❌ ERROR: MONGO_URI is missing. Please set it in Vercel environment variables.");
-} else {
-  mongoose.connect(MONGO_URI, {
-    serverSelectionTimeoutMS: 5000, 
-  })
-  .then(() => {
-    console.log('✅ DATABASE CONNECTED SUCCESSFULLY');
-    seedDatabase(); 
-  })
-  .catch(err => {
-    console.error('❌ MONGODB CONNECTION ERROR:', err.message);
+async function connectToDatabase() {
+  if (cachedDb && mongoose.connection.readyState === 1) {
+    return cachedDb;
+  }
+
+  const MONGO_URI = process.env.MONGO_URI;
+  if (!MONGO_URI) {
+    throw new Error("❌ MONGO_URI is not defined in Environment Variables.");
+  }
+
+  console.log("📡 Attempting new Database Connection...");
+  const db = await mongoose.connect(MONGO_URI, {
+    serverSelectionTimeoutMS: 5000,
   });
+  
+  cachedDb = db;
+  return db;
 }
 
 // --- Schemas & Models ---
-
 const UserSchema = new mongoose.Schema({
-  id: { type: String, unique: true },
+  id: { type: String, unique: true, required: true },
   name: String,
   email: { type: String, unique: true },
   password: { type: String, required: true },
@@ -40,7 +43,7 @@ const UserSchema = new mongoose.Schema({
 });
 
 const ProductSchema = new mongoose.Schema({
-  id: { type: String, unique: true },
+  id: { type: String, unique: true, required: true },
   name: String,
   description: String,
   price: Number,
@@ -51,7 +54,7 @@ const ProductSchema = new mongoose.Schema({
 });
 
 const OrderSchema = new mongoose.Schema({
-  id: { type: String, unique: true },
+  id: { type: String, unique: true, required: true },
   userId: String,
   items: Array,
   total: Number,
@@ -59,38 +62,33 @@ const OrderSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-const User = mongoose.model('User', UserSchema);
-const Product = mongoose.model('Product', ProductSchema);
-const Order = mongoose.model('Order', OrderSchema);
+// Avoid re-compiling models if they already exist
+const User = mongoose.models.User || mongoose.model('User', UserSchema);
+const Product = mongoose.models.Product || mongoose.model('Product', ProductSchema);
+const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);
 
-// --- Seeding Logic ---
-async function seedDatabase() {
+// Middleware to ensure DB is connected before processing any request
+app.use(async (req, res, next) => {
   try {
-    // Upsert the admin to ensure credentials are always fresh
-    await User.findOneAndUpdate(
-      { id: 'tejovanth' },
-      {
-        id: 'tejovanth',
-        name: 'Tejovanth',
-        email: 'tejovanth@mycart.com',
-        password: '1234',
-        role: 'ADMIN',
-        avatar: 'https://ui-avatars.com/api/?name=Tejovanth&background=dc2626&color=fff'
-      },
-      { upsert: true, new: true }
-    );
-    console.log('✅ Master User Tejovanth Synchronized');
+    await connectToDatabase();
+    next();
   } catch (err) {
-    console.error('❌ Seeding Error:', err.message);
+    console.error("Database connection failed:", err.message);
+    res.status(503).json({ 
+      error: "Database Connection Error", 
+      details: "Check your MONGO_URI and IP Whitelist (0.0.0.0/0) in Atlas.",
+      message: err.message
+    });
   }
-}
+});
 
 // --- API Routes ---
 
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: mongoose.connection.readyState === 1 ? 'online' : 'connecting', 
-    code: mongoose.connection.readyState 
+    code: mongoose.connection.readyState,
+    dbName: mongoose.connection.name
   });
 });
 
@@ -108,11 +106,16 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     res.json(user);
-  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+  } catch (err) { 
+    res.status(500).json({ error: 'Server error during login', message: err.message }); 
+  }
 });
 
 app.get('/api/users', async (req, res) => {
-  try { res.json(await User.find()); } catch (err) { res.status(500).json(err); }
+  try { 
+    const users = await User.find();
+    res.json(users); 
+  } catch (err) { res.status(500).json(err); }
 });
 
 app.post('/api/users/sync', async (req, res) => {
@@ -123,7 +126,10 @@ app.post('/api/users/sync', async (req, res) => {
 });
 
 app.get('/api/products', async (req, res) => {
-  try { res.json(await Product.find()); } catch (err) { res.status(500).json(err); }
+  try { 
+    const products = await Product.find().sort({ _id: -1 });
+    res.json(products); 
+  } catch (err) { res.status(500).json(err); }
 });
 
 app.post('/api/products', async (req, res) => {
@@ -131,7 +137,7 @@ app.post('/api/products', async (req, res) => {
     const product = new Product(req.body);
     await product.save();
     res.status(201).json(product);
-  } catch (err) { res.status(400).json(err); }
+  } catch (err) { res.status(400).json({ error: "Failed to save product", details: err.message }); }
 });
 
 app.put('/api/products/:id', async (req, res) => {

@@ -77,9 +77,11 @@ const App: React.FC = () => {
     const performBackgroundSync = async () => {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
 
         const healthRes = await fetch(`${API_BASE}/health`, { signal: controller.signal });
+        if (!healthRes.ok) throw new Error("Server reporting offline status");
+        
         const healthStatus = await healthRes.json();
         clearTimeout(timeoutId);
 
@@ -99,7 +101,7 @@ const App: React.FC = () => {
           }
         }
       } catch (err) {
-        console.warn("Cloud Sync Unavailable - Running Local Instance");
+        console.warn("Cloud Sync Unavailable - Check MONGO_URI and IP White-list (0.0.0.0/0)");
       } finally {
         setIsSyncing(false);
       }
@@ -112,7 +114,6 @@ const App: React.FC = () => {
     const cleanId = identifier.trim().toLowerCase();
     const cleanPw = password ? password.trim() : "";
 
-    // MASTER ACCESS BYPASS: Hardcoded priority check
     if (cleanId === 'tejovanth' && cleanPw === '1234') {
       const masterUser: User = { 
         id: 'tejovanth', 
@@ -123,7 +124,6 @@ const App: React.FC = () => {
       };
       setUser(masterUser);
       localStorage.setItem('mycart_user', JSON.stringify(masterUser));
-      console.log("Master Access Granted to Tejovanth");
       return;
     }
 
@@ -141,20 +141,12 @@ const App: React.FC = () => {
         const ordRes = await fetch(`${API_BASE}/orders/${loggedInUser.id || loggedInUser._id}`);
         if (ordRes.ok) setOrders(await ordRes.json());
       } else {
-        // This is where you were seeing the error. 
-        // We now make it clearer if it was a server rejection.
-        alert("Credentials rejected by Crimson Vault. Please check your spelling.");
+        const err = await res.json();
+        alert(`Auth Rejected: ${err.error || 'Check credentials'}`);
       }
     } catch (e) {
-      // Offline fallback
-      const offlineUser: User = { 
-        id: 'off-' + Math.random().toString(36).substr(2, 5), 
-        name: identifier, 
-        email: 'offline@mycart.com', 
-        role: identifier.toLowerCase() === 'tejovanth' ? 'ADMIN' : 'USER' 
-      };
-      setUser(offlineUser);
-      alert("Cloud connection failed. Entering Offline Session.");
+      alert("Database unreachable. Logging in with Guest session.");
+      setUser({ id: 'guest-' + Date.now(), name: identifier, email: 'guest@mycart.com', role: identifier.toLowerCase() === 'tejovanth' ? 'ADMIN' : 'USER' });
     }
   };
 
@@ -224,12 +216,15 @@ const App: React.FC = () => {
   const addProduct = async (p: Product) => {
     setProducts([p, ...products]);
     try {
-      await fetch(`${API_BASE}/products`, {
+      const res = await fetch(`${API_BASE}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(p)
       });
-    } catch (e) {}
+      if (!res.ok) throw new Error("Database refused listing");
+    } catch (e) {
+      alert("Warning: Listing saved locally but could not sync to Cloud Atlas.");
+    }
   };
 
   const updateProduct = async (p: Product) => {
@@ -261,7 +256,7 @@ const App: React.FC = () => {
                 
                 {isSyncing && (
                   <div className="bg-red-600 text-white text-[10px] font-black uppercase py-1 text-center tracking-[0.3em] animate-pulse sticky top-16 md:top-20 z-50">
-                    Establishing Crimson Link...
+                    Probing Atlas Gateway...
                   </div>
                 )}
 
