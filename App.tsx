@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { User, Product, CartItem, Order, UserRole } from './types.ts';
@@ -28,6 +29,7 @@ interface AuthContextType {
   user: User | null; 
   users: User[];
   login: (identifier: string, password?: string) => Promise<void>; 
+  signup: (name: string, email: string, password?: string) => Promise<void>;
   logout: () => void; 
   updateUser: (data: Partial<User>) => Promise<void>; 
   toggleUserRole: (userId: string) => Promise<void>;
@@ -47,7 +49,7 @@ interface StoreContextType {
   removeFromCart: (productId: string) => void;
   updateCartQuantity: (productId: string, qty: number) => void;
   clearCart: () => void;
-  placeOrder: () => Promise<void>;
+  placeOrder: (orderData?: Partial<Order>) => Promise<void>;
   addProduct: (product: Product) => Promise<void>;
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
@@ -69,10 +71,28 @@ const App: React.FC = () => {
 
   const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
 
+  const fetchOrders = async (userId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/orders/${userId}`);
+      if (res.ok) {
+        const cloudOrders = await res.json();
+        setOrders(cloudOrders);
+      }
+    } catch (e) {
+      console.warn("Could not fetch cloud orders.");
+    }
+  };
+
   useEffect(() => {
     const savedUser = localStorage.getItem('mycart_user');
     if (savedUser) {
-      try { setUser(JSON.parse(savedUser)); } catch(e) { localStorage.removeItem('mycart_user'); }
+      try { 
+        const parsed = JSON.parse(savedUser);
+        setUser(parsed);
+        fetchOrders(parsed.id);
+      } catch(e) { 
+        localStorage.removeItem('mycart_user'); 
+      }
     }
 
     const performBackgroundSync = async () => {
@@ -115,6 +135,7 @@ const App: React.FC = () => {
       };
       setUser(masterUser);
       localStorage.setItem('mycart_user', JSON.stringify(masterUser));
+      fetchOrders(masterUser.id);
       return;
     }
 
@@ -125,21 +146,43 @@ const App: React.FC = () => {
         body: JSON.stringify({ identifier: cleanId, password: cleanPw })
       });
       
-      const contentType = res.headers.get("content-type");
-      if (res.ok && contentType && contentType.includes("application/json")) {
+      if (res.ok) {
         const loggedInUser = await res.json();
         setUser(loggedInUser);
         localStorage.setItem('mycart_user', JSON.stringify(loggedInUser));
+        fetchOrders(loggedInUser.id);
       } else {
-        const errorData = (contentType && contentType.includes("application/json")) ? await res.json() : { error: "Check MongoDB Atlas variables" };
-        alert(`Access Error: ${errorData.error || errorData.details || 'Check Atlas settings'}`);
+        const err = await res.json();
+        alert(`Access Error: ${err.error || 'Invalid credentials'}`);
       }
     } catch (e) {
-      setUser({ id: 'guest-' + Date.now(), name: identifier, email: 'guest@mycart.local', role: 'USER' });
+      alert("Network Error: Could not reach backend.");
     }
   };
 
-  const logout = () => { setUser(null); localStorage.removeItem('mycart_user'); };
+  const signup = async (name: string, email: string, password?: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      });
+      
+      if (res.ok) {
+        const newUser = await res.json();
+        setUser(newUser);
+        localStorage.setItem('mycart_user', JSON.stringify(newUser));
+        setOrders([]);
+      } else {
+        const err = await res.json();
+        alert(`Signup Error: ${err.error}`);
+      }
+    } catch (e) {
+      alert("Network Error: Could not reach backend.");
+    }
+  };
+
+  const logout = () => { setUser(null); setOrders([]); localStorage.removeItem('mycart_user'); };
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -163,28 +206,24 @@ const App: React.FC = () => {
   };
 
   const updateProduct = async (p: Product) => {
-    // Optimistic Update
     setProducts(products.map(item => item.id === p.id ? p : item));
     try {
-      const res = await fetch(`${API_BASE}/products/${p.id}`, {
+      await fetch(`${API_BASE}/products/${p.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(p)
       });
-      if (!res.ok) throw new Error("Update Failed");
     } catch (e) {
       console.error("Cloud update failed:", e);
     }
   };
 
   const deleteProduct = async (id: string) => {
-    // Optimistic Delete
     setProducts(products.filter(item => item.id !== id));
     try {
-      const res = await fetch(`${API_BASE}/products/${id}`, {
+      await fetch(`${API_BASE}/products/${id}`, {
         method: 'DELETE'
       });
-      if (!res.ok) throw new Error("Delete Failed");
     } catch (e) {
       console.error("Cloud delete failed:", e);
     }
@@ -193,11 +232,40 @@ const App: React.FC = () => {
   const removeFromCart = (id: string) => setCart(prev => prev.filter(item => item.id !== id));
   const updateCartQuantity = (id: string, qty: number) => setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(1, qty) } : item));
   const clearCart = () => setCart([]);
-  const placeOrder = async () => clearCart();
+  
+  const placeOrder = async (orderData?: Partial<Order>) => {
+    if (!user) return;
+    
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const total = subtotal > 1999 ? subtotal : subtotal + 99;
+
+    const newOrder: Order = {
+      id: orderData?.id || 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+      userId: user.id,
+      items: [...cart],
+      total: total,
+      status: 'PENDING',
+      createdAt: new Date().toISOString()
+    };
+
+    // Optimistic UI update
+    setOrders([newOrder, ...orders]);
+    clearCart();
+
+    try {
+      await fetch(`${API_BASE}/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newOrder)
+      });
+    } catch (e) {
+      console.error("Order cloud sync failed:", e);
+    }
+  };
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      <AuthContext.Provider value={{ user, users, login, logout, updateUser: async () => {}, toggleUserRole: async () => {}, isAdmin: user?.role === 'ADMIN' }}>
+      <AuthContext.Provider value={{ user, users, login, signup, logout, updateUser: async () => {}, toggleUserRole: async () => {}, isAdmin: user?.role === 'ADMIN' }}>
         <StoreContext.Provider value={{ products, orders, cart, loading, isOnline, diagnostics, addToCart, removeFromCart, updateCartQuantity, clearCart, placeOrder, addProduct, updateProduct, deleteProduct }}>
           <div className={`${theme}`}>
             <HashRouter>

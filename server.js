@@ -1,3 +1,4 @@
+
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -38,7 +39,9 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['USER', 'ADMIN'], default: 'USER' },
-  avatar: String
+  avatar: String,
+  phone: String,
+  address: String
 });
 
 const ProductSchema = new mongoose.Schema({
@@ -51,8 +54,18 @@ const ProductSchema = new mongoose.Schema({
   stock: { type: Number, default: 0 }
 });
 
+const OrderSchema = new mongoose.Schema({
+  id: { type: String, unique: true, required: true },
+  userId: { type: String, required: true },
+  items: Array,
+  total: Number,
+  status: { type: String, default: 'PENDING' },
+  createdAt: { type: Date, default: Date.now }
+});
+
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 const Product = mongoose.models.Product || mongoose.model('Product', ProductSchema);
+const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);
 
 // --- API Routes ---
 
@@ -67,6 +80,33 @@ app.get('/api/health', async (req, res) => {
       dbName: isOk ? mongoose.connection.name : 'unknown'
     }
   });
+});
+
+// --- Auth Routes ---
+
+app.post('/api/signup', async (req, res) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
+  
+  try {
+    const { name, email, password } = req.body;
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) return res.status(400).json({ error: "Email already registered" });
+
+    const newUser = new User({
+      id: 'u-' + Math.random().toString(36).substr(2, 9),
+      name,
+      email: email.toLowerCase(),
+      password, // In a real app, hash this!
+      role: 'USER',
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=dc2626&color=fff`
+    });
+
+    await newUser.save();
+    res.status(201).json(newUser);
+  } catch (err) {
+    res.status(500).json({ error: "Signup failed", message: err.message });
+  }
 });
 
 app.post('/api/login', async (req, res) => {
@@ -94,7 +134,8 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// GET all products
+// --- Product Routes ---
+
 app.get('/api/products', async (req, res) => {
   const isOk = await connectToDatabase();
   if (!isOk) return res.status(503).json({ error: 'Database offline' });
@@ -104,7 +145,6 @@ app.get('/api/products', async (req, res) => {
   } catch (err) { res.status(500).json(err); }
 });
 
-// CREATE product
 app.post('/api/products', async (req, res) => {
   const isOk = await connectToDatabase();
   if (!isOk) return res.status(503).json({ error: 'Database offline' });
@@ -115,7 +155,6 @@ app.post('/api/products', async (req, res) => {
   } catch (err) { res.status(400).json({ error: "Storage Failed", message: err.message }); }
 });
 
-// UPDATE product
 app.put('/api/products/:id', async (req, res) => {
   const isOk = await connectToDatabase();
   if (!isOk) return res.status(503).json({ error: 'Database offline' });
@@ -130,7 +169,6 @@ app.put('/api/products/:id', async (req, res) => {
   } catch (err) { res.status(400).json({ error: "Update Failed", message: err.message }); }
 });
 
-// DELETE product
 app.delete('/api/products/:id', async (req, res) => {
   const isOk = await connectToDatabase();
   if (!isOk) return res.status(503).json({ error: 'Database offline' });
@@ -139,6 +177,27 @@ app.delete('/api/products/:id', async (req, res) => {
     if (!deleted) return res.status(404).json({ error: "Product not found" });
     res.json({ success: true, message: "Product delisted" });
   } catch (err) { res.status(500).json({ error: "Deletion Failed", message: err.message }); }
+});
+
+// --- Order Routes ---
+
+app.get('/api/orders/:userId', async (req, res) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
+  try {
+    const orders = await Order.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (err) { res.status(500).json(err); }
+});
+
+app.post('/api/orders', async (req, res) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
+  try {
+    const newOrder = new Order(req.body);
+    await newOrder.save();
+    res.status(201).json(newOrder);
+  } catch (err) { res.status(400).json({ error: "Order failed", message: err.message }); }
 });
 
 // --- Local Server Listener ---

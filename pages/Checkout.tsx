@@ -20,7 +20,6 @@ const Checkout: React.FC = () => {
   const [cardData, setCardData] = useState({ number: '', expiry: '', cvc: '', name: '' });
   const [shippingData, setShippingData] = useState({ address: '', city: '', zip: '', phone: '' });
 
-  // Snapshot of cart for the success screen
   const [cartSnapshot, setCartSnapshot] = useState<any[]>([]);
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const total = subtotal > 1999 ? subtotal : subtotal + 99;
@@ -33,7 +32,7 @@ const Checkout: React.FC = () => {
 
   const handleStartPayment = (e: React.FormEvent) => {
     e.preventDefault();
-    setCartSnapshot([...cart]); // Capture current cart
+    setCartSnapshot([...cart]);
     setStep('processing');
     startProcessingSimulation();
   };
@@ -62,7 +61,8 @@ const Checkout: React.FC = () => {
           setTimeout(async () => {
             const generatedId = 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase();
             setOrderId(generatedId);
-            await placeOrder();
+            // This triggers the cloud save and order state update
+            await placeOrder({ id: generatedId });
             setStep('success');
           }, 1000);
         }
@@ -115,7 +115,6 @@ const Checkout: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Order Breakdown */}
           <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-2xl shadow-red-500/5 space-y-6">
             <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight border-b border-slate-50 dark:border-white/5 pb-4">Deployment Summary</h3>
             <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
@@ -138,7 +137,6 @@ const Checkout: React.FC = () => {
             </div>
           </div>
 
-          {/* Delivery & Payment Info */}
           <div className="space-y-8">
             <div className="bg-slate-50 dark:bg-slate-800/50 p-8 rounded-[3rem] border border-slate-100 dark:border-white/5 space-y-6">
               <div className="flex items-center space-x-4">

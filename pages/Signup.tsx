@@ -1,19 +1,27 @@
 
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../App';
+import { useAuth } from '../App.tsx';
 
 const Signup: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const { signup } = useAuth();
   const navigate = useNavigate();
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    login(email);
-    navigate('/');
+    setLoading(true);
+    try {
+      await signup(name, email, password);
+      navigate('/');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -21,7 +29,7 @@ const Signup: React.FC = () => {
       <div className="bg-white dark:bg-slate-900 p-8 md:p-12 rounded-[2.5rem] border border-red-50 dark:border-white/5 shadow-2xl shadow-red-500/5 transition-all duration-300">
         <div className="text-center mb-10">
           <div className="w-16 h-16 bg-red-50 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mx-auto mb-6 text-red-600 dark:text-red-400 text-3xl shadow-inner">
-            <i className="fa-solid fa-user-plus"></i>
+            <i className={`fa-solid ${loading ? 'fa-spinner fa-spin' : 'fa-user-plus'}`}></i>
           </div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">Join mycart</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Experience luxury shopping in red.</p>
@@ -36,7 +44,8 @@ const Signup: React.FC = () => {
               placeholder="Jane Doe"
               value={name}
               onChange={e => setName(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-800 dark:text-white border border-transparent dark:border-white/5 rounded-2xl py-4 px-6 outline-none focus:ring-4 focus:ring-red-500/10 focus:border-red-600 transition-all font-bold"
+              disabled={loading}
+              className="w-full bg-slate-50 dark:bg-slate-800 dark:text-white border border-transparent dark:border-white/5 rounded-2xl py-4 px-6 outline-none focus:ring-4 focus:ring-red-500/10 focus:border-red-600 transition-all font-bold disabled:opacity-50"
             />
           </div>
           <div className="space-y-2">
@@ -47,7 +56,8 @@ const Signup: React.FC = () => {
               placeholder="name@example.com"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-800 dark:text-white border border-transparent dark:border-white/5 rounded-2xl py-4 px-6 outline-none focus:ring-4 focus:ring-red-500/10 focus:border-red-600 transition-all font-bold"
+              disabled={loading}
+              className="w-full bg-slate-50 dark:bg-slate-800 dark:text-white border border-transparent dark:border-white/5 rounded-2xl py-4 px-6 outline-none focus:ring-4 focus:ring-red-500/10 focus:border-red-600 transition-all font-bold disabled:opacity-50"
             />
           </div>
           <div className="space-y-2">
@@ -58,15 +68,17 @@ const Signup: React.FC = () => {
               placeholder="••••••••"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-800 dark:text-white border border-transparent dark:border-white/5 rounded-2xl py-4 px-6 outline-none focus:ring-4 focus:ring-red-500/10 focus:border-red-600 transition-all font-bold"
+              disabled={loading}
+              className="w-full bg-slate-50 dark:bg-slate-800 dark:text-white border border-transparent dark:border-white/5 rounded-2xl py-4 px-6 outline-none focus:ring-4 focus:ring-red-500/10 focus:border-red-600 transition-all font-bold disabled:opacity-50"
             />
           </div>
 
           <button 
             type="submit"
-            className="w-full bg-red-600 text-white py-5 rounded-2xl font-black text-lg hover:bg-red-700 transition-all transform active:scale-95 shadow-xl shadow-red-500/20"
+            disabled={loading}
+            className="w-full bg-red-600 text-white py-5 rounded-2xl font-black text-lg hover:bg-red-700 transition-all transform active:scale-95 shadow-xl shadow-red-500/20 disabled:opacity-50 disabled:active:scale-100"
           >
-            Create Account
+            {loading ? 'Creating Identity...' : 'Create Account'}
           </button>
         </form>
 
