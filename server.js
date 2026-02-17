@@ -1,45 +1,45 @@
 
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-require('dotenv').config();
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import 'dotenv/config';
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// --- Database Connection Pooling for Serverless ---
-let cachedDb = null;
-
-async function connectToDatabase() {
-  if (cachedDb && mongoose.connection.readyState === 1) {
-    return cachedDb;
-  }
-
-  const MONGO_URI = process.env.MONGO_URI;
-  if (!MONGO_URI) {
-    throw new Error("❌ MONGO_URI is not defined in Environment Variables.");
-  }
-
-  console.log("📡 Attempting new Database Connection...");
-  const db = await mongoose.connect(MONGO_URI, {
-    serverSelectionTimeoutMS: 5000,
-  });
+// --- Database Connection Management (Optimized for Serverless) ---
+const connectToDatabase = async () => {
+  if (mongoose.connection.readyState === 1) return true;
   
-  cachedDb = db;
-  return db;
-}
+  const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
+  
+  if (!MONGO_URI) {
+    console.error("❌ Diagnostic: MONGO_URI is MISSING from Environment Variables.");
+    return false;
+  }
 
-// --- Schemas & Models ---
+  try {
+    await mongoose.connect(MONGO_URI, {
+      serverSelectionTimeoutMS: 5000, 
+      socketTimeoutMS: 30000,
+    });
+    console.log('✅ Connected to Atlas: ' + mongoose.connection.name);
+    return true;
+  } catch (err) {
+    console.error('❌ Atlas Connection Failed:', err.message);
+    return false;
+  }
+};
+
+// --- Models ---
 const UserSchema = new mongoose.Schema({
   id: { type: String, unique: true, required: true },
   name: String,
   email: { type: String, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['USER', 'ADMIN'], default: 'USER' },
-  avatar: String,
-  phone: String,
-  address: String
+  avatar: String
 });
 
 const ProductSchema = new mongoose.Schema({
@@ -49,57 +49,41 @@ const ProductSchema = new mongoose.Schema({
   price: Number,
   category: String,
   image: String,
-  stock: Number,
-  rating: Number
+  stock: { type: Number, default: 0 }
 });
 
-const OrderSchema = new mongoose.Schema({
-  id: { type: String, unique: true, required: true },
-  userId: String,
-  items: Array,
-  total: Number,
-  status: { type: String, enum: ['PENDING', 'SHIPPED', 'DELIVERED', 'CANCELLED'], default: 'PENDING' },
-  createdAt: { type: Date, default: Date.now }
-});
-
-// Avoid re-compiling models if they already exist
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 const Product = mongoose.models.Product || mongoose.model('Product', ProductSchema);
-const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);
-
-// Middleware to ensure DB is connected before processing any request
-app.use(async (req, res, next) => {
-  try {
-    await connectToDatabase();
-    next();
-  } catch (err) {
-    console.error("Database connection failed:", err.message);
-    res.status(503).json({ 
-      error: "Database Connection Error", 
-      details: "Check your MONGO_URI and IP Whitelist (0.0.0.0/0) in Atlas.",
-      message: err.message
-    });
-  }
-});
 
 // --- API Routes ---
 
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+  const isOk = await connectToDatabase();
   res.json({ 
-    status: mongoose.connection.readyState === 1 ? 'online' : 'connecting', 
-    code: mongoose.connection.readyState,
-    dbName: mongoose.connection.name
+    status: isOk ? 'online' : 'offline', 
+    code: isOk ? 1 : 0,
+    diagnostics: {
+      hasEnv: !!(process.env.MONGO_URI || process.env.MONGODB_URI),
+      readyState: mongoose.connection.readyState,
+      dbName: isOk ? mongoose.connection.name : 'unknown'
+    }
   });
 });
 
 app.post('/api/login', async (req, res) => {
+  const isOk = await connectToDatabase();
   const { identifier, password } = req.body;
+
+  if (!isOk) {
+    return res.status(503).json({ 
+      error: 'Database Offline', 
+      details: 'Ensure MONGO_URI is set and IP is whitelisted in Atlas.' 
+    });
+  }
+
   try {
     const user = await User.findOne({ 
-      $or: [
-        { id: identifier.toLowerCase() }, 
-        { email: identifier.toLowerCase() }
-      ] 
+      $or: [{ id: identifier.toLowerCase() }, { email: identifier.toLowerCase() }] 
     });
     
     if (!user || user.password !== password) {
@@ -107,25 +91,13 @@ app.post('/api/login', async (req, res) => {
     }
     res.json(user);
   } catch (err) { 
-    res.status(500).json({ error: 'Server error during login', message: err.message }); 
+    res.status(500).json({ error: 'Server Error', message: err.message }); 
   }
 });
 
-app.get('/api/users', async (req, res) => {
-  try { 
-    const users = await User.find();
-    res.json(users); 
-  } catch (err) { res.status(500).json(err); }
-});
-
-app.post('/api/users/sync', async (req, res) => {
-  try {
-    const user = await User.findOneAndUpdate({ id: req.body.id }, req.body, { upsert: true, new: true });
-    res.json(user);
-  } catch (err) { res.status(400).json(err); }
-});
-
 app.get('/api/products', async (req, res) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
   try { 
     const products = await Product.find().sort({ _id: -1 });
     res.json(products); 
@@ -133,40 +105,20 @@ app.get('/api/products', async (req, res) => {
 });
 
 app.post('/api/products', async (req, res) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
   try {
     const product = new Product(req.body);
     await product.save();
     res.status(201).json(product);
-  } catch (err) { res.status(400).json({ error: "Failed to save product", details: err.message }); }
+  } catch (err) { res.status(400).json({ error: "Storage Failed", message: err.message }); }
 });
 
-app.put('/api/products/:id', async (req, res) => {
-  try {
-    const updated = await Product.findOneAndUpdate({ id: req.params.id }, req.body, { new: true });
-    res.json(updated);
-  } catch (err) { res.status(400).json(err); }
+// --- Local Server Listener ---
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`🚀 Crimson Server ready at http://localhost:${PORT}`);
+  connectToDatabase();
 });
 
-app.delete('/api/products/:id', async (req, res) => {
-  try {
-    await Product.findOneAndDelete({ id: req.params.id });
-    res.json({ success: true });
-  } catch (err) { res.status(500).json(err); }
-});
-
-app.get('/api/orders/:userId', async (req, res) => {
-  try {
-    const orders = await Order.find({ userId: req.params.userId }).sort({ createdAt: -1 });
-    res.json(orders);
-  } catch (err) { res.status(500).json(err); }
-});
-
-app.post('/api/orders', async (req, res) => {
-  try {
-    const order = new Order(req.body);
-    await order.save();
-    res.status(201).json(order);
-  } catch (err) { res.status(400).json(err); }
-});
-
-module.exports = app;
+export default app;

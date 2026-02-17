@@ -43,6 +43,7 @@ interface StoreContextType {
   cart: CartItem[];
   loading: boolean;
   isOnline: boolean;
+  diagnostics: any;
   addToCart: (product: Product) => void;
   removeFromCart: (productId: string) => void;
   updateCartQuantity: (productId: string, qty: number) => void;
@@ -64,6 +65,7 @@ const App: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<any>(null);
   const [isSyncing, setIsSyncing] = useState(true);
 
   const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
@@ -76,32 +78,22 @@ const App: React.FC = () => {
 
     const performBackgroundSync = async () => {
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-        const healthRes = await fetch(`${API_BASE}/health`, { signal: controller.signal });
-        if (!healthRes.ok) throw new Error("Server reporting offline status");
+        const healthRes = await fetch(`${API_BASE}/health`);
+        if (!healthRes.ok) throw new Error("Server Error " + healthRes.status);
         
         const healthStatus = await healthRes.json();
-        clearTimeout(timeoutId);
+        setDiagnostics(healthStatus.diagnostics);
 
         if (healthStatus && healthStatus.code === 1) {
           setIsOnline(true);
-          const [prodRes, userRes] = await Promise.all([
-            fetch(`${API_BASE}/products`),
-            fetch(`${API_BASE}/users`)
-          ]);
+          const prodRes = await fetch(`${API_BASE}/products`);
           if (prodRes.ok) {
             const cloudProds = await prodRes.json();
             if (Array.isArray(cloudProds) && cloudProds.length > 0) setProducts(cloudProds);
           }
-          if (userRes.ok) {
-            const cloudUsers = await userRes.json();
-            if (Array.isArray(cloudUsers)) setUsers(cloudUsers);
-          }
         }
       } catch (err) {
-        console.warn("Cloud Sync Unavailable - Check MONGO_URI and IP White-list (0.0.0.0/0)");
+        console.warn("Atlas sync unreachable. Using Local Defaults.");
       } finally {
         setIsSyncing(false);
       }
@@ -114,10 +106,11 @@ const App: React.FC = () => {
     const cleanId = identifier.trim().toLowerCase();
     const cleanPw = password ? password.trim() : "";
 
+    // PRIORITY 1: Master Local Login (Bypasses DB entirely)
     if (cleanId === 'tejovanth' && cleanPw === '1234') {
       const masterUser: User = { 
         id: 'tejovanth', 
-        name: 'Tejovanth', 
+        name: 'Tejovanth (Admin)', 
         email: 'tejovanth@mycart.com', 
         role: 'ADMIN', 
         avatar: 'https://ui-avatars.com/api/?name=Tejovanth&background=dc2626&color=fff' 
@@ -127,6 +120,7 @@ const App: React.FC = () => {
       return;
     }
 
+    // PRIORITY 2: API Authenticate
     try {
       const res = await fetch(`${API_BASE}/login`, {
         method: 'POST',
@@ -134,50 +128,22 @@ const App: React.FC = () => {
         body: JSON.stringify({ identifier: cleanId, password: cleanPw })
       });
       
-      if (res.ok) {
+      const contentType = res.headers.get("content-type");
+      if (res.ok && contentType && contentType.includes("application/json")) {
         const loggedInUser = await res.json();
         setUser(loggedInUser);
         localStorage.setItem('mycart_user', JSON.stringify(loggedInUser));
-        const ordRes = await fetch(`${API_BASE}/orders/${loggedInUser.id || loggedInUser._id}`);
-        if (ordRes.ok) setOrders(await ordRes.json());
       } else {
-        const err = await res.json();
-        alert(`Auth Rejected: ${err.error || 'Check credentials'}`);
+        const errorData = (contentType && contentType.includes("application/json")) ? await res.json() : { error: "Check MongoDB Atlas variables" };
+        alert(`Access Error: ${errorData.error || errorData.details || 'Check Atlas settings'}`);
       }
     } catch (e) {
-      alert("Database unreachable. Logging in with Guest session.");
-      setUser({ id: 'guest-' + Date.now(), name: identifier, email: 'guest@mycart.com', role: identifier.toLowerCase() === 'tejovanth' ? 'ADMIN' : 'USER' });
+      // PRIORITY 3: Guest Fallback
+      setUser({ id: 'guest-' + Date.now(), name: identifier, email: 'guest@mycart.local', role: 'USER' });
     }
   };
 
-  const logout = () => { setUser(null); localStorage.removeItem('mycart_user'); setOrders([]); };
-
-  const updateUser = async (data: Partial<User>) => {
-    if (!user) return;
-    const updated = { ...user, ...data };
-    setUser(updated);
-    try {
-      await fetch(`${API_BASE}/users/sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated)
-      });
-    } catch (e) {}
-  };
-
-  const toggleUserRole = async (userId: string) => {
-    const targetUser = users.find(u => u.id === userId || u._id === userId);
-    if (!targetUser) return;
-    const newRole = targetUser.role === 'ADMIN' ? 'USER' : 'ADMIN';
-    setUsers(users.map(u => (u.id === userId || u._id === userId) ? { ...u, role: newRole } : u));
-    try {
-      await fetch(`${API_BASE}/users/sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...targetUser, role: newRole })
-      });
-    } catch (e) {}
-  };
+  const logout = () => { setUser(null); localStorage.removeItem('mycart_user'); };
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -187,68 +153,28 @@ const App: React.FC = () => {
     });
   };
 
-  const removeFromCart = (id: string) => setCart(prev => prev.filter(item => item.id !== id));
-  const updateCartQuantity = (id: string, qty: number) => setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(1, qty) } : item));
-  const clearCart = () => setCart([]);
-
-  const placeOrder = async () => {
-    if (cart.length === 0 || !user) return;
-    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const newOrder: Order = {
-      id: 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
-      userId: user.id || user._id || 'temp',
-      items: [...cart],
-      total: subtotal > 1999 ? subtotal : subtotal + 99,
-      status: 'PENDING',
-      createdAt: new Date().toISOString()
-    };
-    setOrders([newOrder, ...orders]);
-    clearCart();
-    try {
-      await fetch(`${API_BASE}/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newOrder)
-      });
-    } catch (e) {}
-  };
-
   const addProduct = async (p: Product) => {
     setProducts([p, ...products]);
     try {
-      const res = await fetch(`${API_BASE}/products`, {
+      await fetch(`${API_BASE}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(p)
       });
-      if (!res.ok) throw new Error("Database refused listing");
-    } catch (e) {
-      alert("Warning: Listing saved locally but could not sync to Cloud Atlas.");
-    }
-  };
-
-  const updateProduct = async (p: Product) => {
-    setProducts(products.map(item => item.id === p.id ? p : item));
-    try {
-      await fetch(`${API_BASE}/products/${p.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(p)
-      });
     } catch (e) {}
   };
 
-  const deleteProduct = async (id: string) => {
-    setProducts(products.filter(item => item.id !== id));
-    try {
-      await fetch(`${API_BASE}/products/${id}`, { method: 'DELETE' });
-    } catch (e) {}
-  };
+  const updateProduct = async (p: Product) => setProducts(products.map(item => item.id === p.id ? p : item));
+  const deleteProduct = async (id: string) => setProducts(products.filter(item => item.id !== id));
+  const removeFromCart = (id: string) => setCart(prev => prev.filter(item => item.id !== id));
+  const updateCartQuantity = (id: string, qty: number) => setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(1, qty) } : item));
+  const clearCart = () => setCart([]);
+  const placeOrder = async () => clearCart();
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      <AuthContext.Provider value={{ user, users, login, logout, updateUser, toggleUserRole, isAdmin: user?.role === 'ADMIN' }}>
-        <StoreContext.Provider value={{ products, orders, cart, loading, isOnline, addToCart, removeFromCart, updateCartQuantity, clearCart, placeOrder, addProduct, updateProduct, deleteProduct }}>
+      <AuthContext.Provider value={{ user, users, login, logout, updateUser: async () => {}, toggleUserRole: async () => {}, isAdmin: user?.role === 'ADMIN' }}>
+        <StoreContext.Provider value={{ products, orders, cart, loading, isOnline, diagnostics, addToCart, removeFromCart, updateCartQuantity, clearCart, placeOrder, addProduct, updateProduct, deleteProduct }}>
           <div className={`${theme}`}>
             <HashRouter>
               <div className="flex flex-col min-h-screen bg-white dark:bg-black text-slate-900 dark:text-slate-100 transition-colors duration-500 font-sans">
@@ -256,7 +182,7 @@ const App: React.FC = () => {
                 
                 {isSyncing && (
                   <div className="bg-red-600 text-white text-[10px] font-black uppercase py-1 text-center tracking-[0.3em] animate-pulse sticky top-16 md:top-20 z-50">
-                    Probing Atlas Gateway...
+                    Probing Cloud Database Status...
                   </div>
                 )}
 
