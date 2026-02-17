@@ -14,7 +14,6 @@ const MONGO_URI = process.env.MONGO_URI;
 if (!MONGO_URI) {
   console.error("❌ ERROR: MONGO_URI is missing. Please set it in Vercel environment variables.");
 } else {
-  // Use connection timeout for serverless environments
   mongoose.connect(MONGO_URI, {
     serverSelectionTimeoutMS: 5000, 
   })
@@ -67,18 +66,23 @@ const Order = mongoose.model('Order', OrderSchema);
 // --- Seeding Logic ---
 async function seedDatabase() {
   try {
-    const adminExists = await User.findOne({ id: 'tejovanth' });
-    if (!adminExists) {
-      await User.create({
+    // Upsert the admin to ensure credentials are always fresh
+    await User.findOneAndUpdate(
+      { id: 'tejovanth' },
+      {
         id: 'tejovanth',
         name: 'Tejovanth',
         email: 'tejovanth@mycart.com',
         password: '1234',
         role: 'ADMIN',
-        avatar: 'https://ui-avatars.com/api/?name=Tejovanth&background=ffd700&color=000'
-      });
-    }
-  } catch (err) {}
+        avatar: 'https://ui-avatars.com/api/?name=Tejovanth&background=dc2626&color=fff'
+      },
+      { upsert: true, new: true }
+    );
+    console.log('✅ Master User Tejovanth Synchronized');
+  } catch (err) {
+    console.error('❌ Seeding Error:', err.message);
+  }
 }
 
 // --- API Routes ---
@@ -93,7 +97,13 @@ app.get('/api/health', (req, res) => {
 app.post('/api/login', async (req, res) => {
   const { identifier, password } = req.body;
   try {
-    const user = await User.findOne({ $or: [{ id: identifier }, { email: identifier }] });
+    const user = await User.findOne({ 
+      $or: [
+        { id: identifier.toLowerCase() }, 
+        { email: identifier.toLowerCase() }
+      ] 
+    });
+    
     if (!user || user.password !== password) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
