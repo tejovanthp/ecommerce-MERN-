@@ -69,21 +69,17 @@ const App: React.FC = () => {
   const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
 
   useEffect(() => {
-    // 1. Session Recovery
     const savedUser = localStorage.getItem('mycart_user');
     if (savedUser) {
       try { setUser(JSON.parse(savedUser)); } catch(e) { localStorage.removeItem('mycart_user'); }
     }
 
-    // 2. Background Sync
     const performBackgroundSync = async () => {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
 
         const healthRes = await fetch(`${API_BASE}/health`, { signal: controller.signal });
-        if (!healthRes.ok) throw new Error("Health check failed");
-        
         const healthStatus = await healthRes.json();
         clearTimeout(timeoutId);
 
@@ -113,6 +109,20 @@ const App: React.FC = () => {
   }, []);
 
   const login = async (identifier: string, password?: string) => {
+    // MASTER ACCESS BYPASS: Check for 'tejovanth' and '1234'
+    if (identifier.toLowerCase() === 'tejovanth' && password === '1234') {
+      const masterUser: User = { 
+        id: 'tejovanth', 
+        name: 'Tejovanth', 
+        email: 'tejovanth@mycart.com', 
+        role: 'ADMIN', 
+        avatar: 'https://ui-avatars.com/api/?name=Tejovanth&background=dc2626&color=fff' 
+      };
+      setUser(masterUser);
+      localStorage.setItem('mycart_user', JSON.stringify(masterUser));
+      return;
+    }
+
     try {
       const res = await fetch(`${API_BASE}/login`, {
         method: 'POST',
@@ -126,11 +136,11 @@ const App: React.FC = () => {
         const ordRes = await fetch(`${API_BASE}/orders/${loggedInUser.id || loggedInUser._id}`);
         if (ordRes.ok) setOrders(await ordRes.json());
       } else {
-        alert("Authentication failed. Using guest profile.");
+        alert("Authentication failed.");
       }
     } catch (e) {
-      const dummy: User = { id: 'u1', name: identifier, email: 'guest@mycart.com', role: 'USER' };
-      setUser(dummy);
+      alert("Database error. Using offline session.");
+      setUser({ id: 'u1', name: identifier, email: 'guest@mycart.com', role: 'USER' });
     }
   };
 
@@ -237,7 +247,7 @@ const App: React.FC = () => {
                 
                 {isSyncing && (
                   <div className="bg-red-600 text-white text-[10px] font-black uppercase py-1 text-center tracking-[0.3em] animate-pulse sticky top-16 md:top-20 z-50">
-                    Syncing with Crimson Cloud Gate...
+                    Establishing Crimson Link...
                   </div>
                 )}
 
