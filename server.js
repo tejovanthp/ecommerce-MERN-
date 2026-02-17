@@ -1,4 +1,3 @@
-
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -8,14 +7,14 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// --- Database Connection Management (Optimized for Serverless) ---
+// --- Database Connection Management ---
 const connectToDatabase = async () => {
   if (mongoose.connection.readyState === 1) return true;
   
   const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
   
   if (!MONGO_URI) {
-    console.error("❌ Diagnostic: MONGO_URI is MISSING from Environment Variables.");
+    console.error("❌ Diagnostic: MONGO_URI is MISSING from .env file.");
     return false;
   }
 
@@ -24,10 +23,10 @@ const connectToDatabase = async () => {
       serverSelectionTimeoutMS: 5000, 
       socketTimeoutMS: 30000,
     });
-    console.log('✅ Connected to Atlas: ' + mongoose.connection.name);
+    console.log('✅ Connected to MongoDB Atlas: ' + mongoose.connection.name);
     return true;
   } catch (err) {
-    console.error('❌ Atlas Connection Failed:', err.message);
+    console.error('❌ MongoDB Connection Failed:', err.message);
     return false;
   }
 };
@@ -77,7 +76,7 @@ app.post('/api/login', async (req, res) => {
   if (!isOk) {
     return res.status(503).json({ 
       error: 'Database Offline', 
-      details: 'Ensure MONGO_URI is set and IP is whitelisted in Atlas.' 
+      details: 'Ensure MONGO_URI is set in your .env file.' 
     });
   }
 
@@ -95,6 +94,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// GET all products
 app.get('/api/products', async (req, res) => {
   const isOk = await connectToDatabase();
   if (!isOk) return res.status(503).json({ error: 'Database offline' });
@@ -104,6 +104,7 @@ app.get('/api/products', async (req, res) => {
   } catch (err) { res.status(500).json(err); }
 });
 
+// CREATE product
 app.post('/api/products', async (req, res) => {
   const isOk = await connectToDatabase();
   if (!isOk) return res.status(503).json({ error: 'Database offline' });
@@ -114,10 +115,36 @@ app.post('/api/products', async (req, res) => {
   } catch (err) { res.status(400).json({ error: "Storage Failed", message: err.message }); }
 });
 
+// UPDATE product
+app.put('/api/products/:id', async (req, res) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
+  try {
+    const updated = await Product.findOneAndUpdate(
+      { id: req.params.id },
+      { $set: req.body },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ error: "Product not found" });
+    res.json(updated);
+  } catch (err) { res.status(400).json({ error: "Update Failed", message: err.message }); }
+});
+
+// DELETE product
+app.delete('/api/products/:id', async (req, res) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
+  try {
+    const deleted = await Product.findOneAndDelete({ id: req.params.id });
+    if (!deleted) return res.status(404).json({ error: "Product not found" });
+    res.json({ success: true, message: "Product delisted" });
+  } catch (err) { res.status(500).json({ error: "Deletion Failed", message: err.message }); }
+});
+
 // --- Local Server Listener ---
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Crimson Server ready at http://localhost:${PORT}`);
+  console.log(`🚀 Backend ready at http://localhost:${PORT}`);
   connectToDatabase();
 });
 

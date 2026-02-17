@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { User, Product, CartItem, Order, UserRole } from './types.ts';
@@ -106,7 +105,6 @@ const App: React.FC = () => {
     const cleanId = identifier.trim().toLowerCase();
     const cleanPw = password ? password.trim() : "";
 
-    // PRIORITY 1: Master Local Login (Bypasses DB entirely)
     if (cleanId === 'tejovanth' && cleanPw === '1234') {
       const masterUser: User = { 
         id: 'tejovanth', 
@@ -120,7 +118,6 @@ const App: React.FC = () => {
       return;
     }
 
-    // PRIORITY 2: API Authenticate
     try {
       const res = await fetch(`${API_BASE}/login`, {
         method: 'POST',
@@ -138,7 +135,6 @@ const App: React.FC = () => {
         alert(`Access Error: ${errorData.error || errorData.details || 'Check Atlas settings'}`);
       }
     } catch (e) {
-      // PRIORITY 3: Guest Fallback
       setUser({ id: 'guest-' + Date.now(), name: identifier, email: 'guest@mycart.local', role: 'USER' });
     }
   };
@@ -161,11 +157,39 @@ const App: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(p)
       });
-    } catch (e) {}
+    } catch (e) {
+      console.error("Cloud save failed:", e);
+    }
   };
 
-  const updateProduct = async (p: Product) => setProducts(products.map(item => item.id === p.id ? p : item));
-  const deleteProduct = async (id: string) => setProducts(products.filter(item => item.id !== id));
+  const updateProduct = async (p: Product) => {
+    // Optimistic Update
+    setProducts(products.map(item => item.id === p.id ? p : item));
+    try {
+      const res = await fetch(`${API_BASE}/products/${p.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(p)
+      });
+      if (!res.ok) throw new Error("Update Failed");
+    } catch (e) {
+      console.error("Cloud update failed:", e);
+    }
+  };
+
+  const deleteProduct = async (id: string) => {
+    // Optimistic Delete
+    setProducts(products.filter(item => item.id !== id));
+    try {
+      const res = await fetch(`${API_BASE}/products/${id}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error("Delete Failed");
+    } catch (e) {
+      console.error("Cloud delete failed:", e);
+    }
+  };
+
   const removeFromCart = (id: string) => setCart(prev => prev.filter(item => item.id !== id));
   const updateCartQuantity = (id: string, qty: number) => setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(1, qty) } : item));
   const clearCart = () => setCart([]);
