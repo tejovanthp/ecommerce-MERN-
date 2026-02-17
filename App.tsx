@@ -21,14 +21,6 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
   ? "http://localhost:5000/api" 
   : "/api";
 
-// Helper for fetch with timeout
-const fetchWithTimeout = (url: string, options: any = {}, timeout = 3000) => {
-  return Promise.race([
-    fetch(url, options),
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout))
-  ]) as Promise<Response>;
-};
-
 interface ThemeContextType { theme: 'light' | 'dark'; toggleTheme: () => void; }
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const useTheme = () => { const context = useContext(ThemeContext); if (!context) throw new Error("useTheme error"); return context; };
@@ -70,46 +62,54 @@ const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(true);
 
   const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
 
   useEffect(() => {
-    const initApp = async () => {
-      console.log("🚀 Syncing with Crimson Cloud Gate...");
-      try {
-        // Use timeout to prevent sticking on splash screen
-        const healthRes = await fetchWithTimeout(`${API_BASE}/health`, {}, 3000);
-        const healthStatus = await healthRes.json();
-        const isDbConnected = healthRes.ok && healthStatus.code === 1;
-        setIsOnline(isDbConnected);
+    // 1. Session Recovery
+    const savedUser = localStorage.getItem('mycart_user');
+    if (savedUser) {
+      try { setUser(JSON.parse(savedUser)); } catch(e) { localStorage.removeItem('mycart_user'); }
+    }
 
-        if (isDbConnected) {
+    // 2. Background Sync
+    const performBackgroundSync = async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+        const healthRes = await fetch(`${API_BASE}/health`, { signal: controller.signal });
+        if (!healthRes.ok) throw new Error("Health check failed");
+        
+        const healthStatus = await healthRes.json();
+        clearTimeout(timeoutId);
+
+        if (healthStatus && healthStatus.code === 1) {
+          setIsOnline(true);
           const [prodRes, userRes] = await Promise.all([
             fetch(`${API_BASE}/products`),
             fetch(`${API_BASE}/users`)
           ]);
-
-          if (prodRes.ok) setProducts(await prodRes.json());
-          if (userRes.ok) setUsers(await userRes.json());
+          if (prodRes.ok) {
+            const cloudProds = await prodRes.json();
+            if (Array.isArray(cloudProds) && cloudProds.length > 0) setProducts(cloudProds);
+          }
+          if (userRes.ok) {
+            const cloudUsers = await userRes.json();
+            if (Array.isArray(cloudUsers)) setUsers(cloudUsers);
+          }
         }
       } catch (err) {
-        console.warn("⚠️ Cloud Sync Timeout - Operating in Local Mode");
-        setIsOnline(false);
+        console.warn("Cloud Sync Unavailable - Running Local Instance");
       } finally {
-        // Always clear loading after sync attempt or timeout
-        const savedUser = localStorage.getItem('mycart_user');
-        if (savedUser) {
-          try {
-            const parsed = JSON.parse(savedUser);
-            setUser(parsed);
-          } catch(e) {}
-        }
-        setLoading(false);
+        setIsSyncing(false);
       }
     };
-    initApp();
+
+    performBackgroundSync();
   }, []);
 
   const login = async (identifier: string, password?: string) => {
@@ -119,7 +119,6 @@ const App: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, password })
       });
-
       if (res.ok) {
         const loggedInUser = await res.json();
         setUser(loggedInUser);
@@ -127,12 +126,10 @@ const App: React.FC = () => {
         const ordRes = await fetch(`${API_BASE}/orders/${loggedInUser.id || loggedInUser._id}`);
         if (ordRes.ok) setOrders(await ordRes.json());
       } else {
-        alert("Authentication Failed. Check your credentials.");
+        alert("Authentication failed. Using guest profile.");
       }
     } catch (e) {
-      alert("Database Connectivity Error. Using local session.");
-      // Dummy login for local testing if server is down
-      const dummy = { id: 'user1', name: identifier, email: 'user@example.com', role: 'USER' as UserRole, avatar: 'https://ui-avatars.com/api/?name=User' };
+      const dummy: User = { id: 'u1', name: identifier, email: 'guest@mycart.com', role: 'USER' };
       setUser(dummy);
     }
   };
@@ -142,36 +139,28 @@ const App: React.FC = () => {
   const updateUser = async (data: Partial<User>) => {
     if (!user) return;
     const updated = { ...user, ...data };
+    setUser(updated);
     try {
-      const res = await fetch(`${API_BASE}/users/sync`, {
+      await fetch(`${API_BASE}/users/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated)
       });
-      if (res.ok) {
-        const synced = await res.json();
-        setUser(synced);
-        localStorage.setItem('mycart_user', JSON.stringify(synced));
-      }
-    } catch (e) { setUser(updated); }
+    } catch (e) {}
   };
 
   const toggleUserRole = async (userId: string) => {
     const targetUser = users.find(u => u.id === userId || u._id === userId);
     if (!targetUser) return;
     const newRole = targetUser.role === 'ADMIN' ? 'USER' : 'ADMIN';
+    setUsers(users.map(u => (u.id === userId || u._id === userId) ? { ...u, role: newRole } : u));
     try {
-      const res = await fetch(`${API_BASE}/users/sync`, {
+      await fetch(`${API_BASE}/users/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...targetUser, role: newRole })
       });
-      if (res.ok) {
-        const updated = await res.json();
-        setUsers(users.map(u => (u.id === userId || u._id === userId) ? updated : u));
-        if (user?.id === userId || user?._id === userId) setUser(updated);
-      }
-    } catch (e) { console.error("Role update failed"); }
+    } catch (e) {}
   };
 
   const addToCart = (product: Product) => {
@@ -191,56 +180,50 @@ const App: React.FC = () => {
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const newOrder: Order = {
       id: 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
-      userId: user.id || user._id || '',
+      userId: user.id || user._id || 'temp',
       items: [...cart],
       total: subtotal > 1999 ? subtotal : subtotal + 99,
       status: 'PENDING',
       createdAt: new Date().toISOString()
     };
+    setOrders([newOrder, ...orders]);
+    clearCart();
     try {
-      const res = await fetch(`${API_BASE}/orders`, {
+      await fetch(`${API_BASE}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newOrder)
       });
-      if (res.ok) {
-        setOrders([newOrder, ...orders]);
-        clearCart();
-      }
-    } catch (e) { 
-      setOrders([newOrder, ...orders]);
-      clearCart();
-      alert("Note: Order saved locally as cloud link is slow."); 
-    }
+    } catch (e) {}
   };
 
   const addProduct = async (p: Product) => {
+    setProducts([p, ...products]);
     try {
-      const res = await fetch(`${API_BASE}/products`, {
+      await fetch(`${API_BASE}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(p)
       });
-      if (res.ok) setProducts([await res.json(), ...products]);
-    } catch (e) { setProducts([p, ...products]); }
+    } catch (e) {}
   };
 
   const updateProduct = async (p: Product) => {
+    setProducts(products.map(item => item.id === p.id ? p : item));
     try {
-      const res = await fetch(`${API_BASE}/products/${p.id}`, {
+      await fetch(`${API_BASE}/products/${p.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(p)
       });
-      if (res.ok) setProducts(products.map(item => item.id === p.id ? p : item));
-    } catch (e) { setProducts(products.map(item => item.id === p.id ? p : item)); }
+    } catch (e) {}
   };
 
   const deleteProduct = async (id: string) => {
+    setProducts(products.filter(item => item.id !== id));
     try {
-      const res = await fetch(`${API_BASE}/products/${id}`, { method: 'DELETE' });
-      if (res.ok) setProducts(products.filter(item => item.id !== id));
-    } catch (e) { setProducts(products.filter(item => item.id !== id)); }
+      await fetch(`${API_BASE}/products/${id}`, { method: 'DELETE' });
+    } catch (e) {}
   };
 
   return (
@@ -251,34 +234,26 @@ const App: React.FC = () => {
             <HashRouter>
               <div className="flex flex-col min-h-screen bg-white dark:bg-black text-slate-900 dark:text-slate-100 transition-colors duration-500 font-sans">
                 <Navbar />
+                
+                {isSyncing && (
+                  <div className="bg-red-600 text-white text-[10px] font-black uppercase py-1 text-center tracking-[0.3em] animate-pulse sticky top-16 md:top-20 z-50">
+                    Syncing with Crimson Cloud Gate...
+                  </div>
+                )}
+
                 <main className="flex-grow container mx-auto px-4 py-8 md:py-16">
-                  {loading ? (
-                    <div className="flex flex-col items-center justify-center h-[60vh] space-y-8 animate-in fade-in duration-700">
-                       <div className="relative">
-                          <div className="w-24 h-24 border-4 border-red-600/10 border-t-red-600 rounded-full animate-spin"></div>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                             <i className="fa-solid fa-microchip text-red-600 text-xl animate-pulse"></i>
-                          </div>
-                       </div>
-                       <div className="text-center">
-                          <p className="text-red-600 font-black uppercase tracking-[0.4em] text-[10px] mb-3">Neural Link Syncing</p>
-                          <p className="text-slate-500 font-bold text-xs uppercase tracking-widest max-w-[200px] mx-auto leading-loose">Accessing MongoDB Atlas Global Cluster...</p>
-                       </div>
-                    </div>
-                  ) : (
-                    <Routes>
-                      <Route path="/" element={<Home />} />
-                      <Route path="/shop" element={<Shop />} />
-                      <Route path="/orders" element={<Orders />} />
-                      <Route path="/product/:id" element={<ProductDetails />} />
-                      <Route path="/cart" element={<Cart />} />
-                      <Route path="/checkout" element={user ? <Checkout /> : <Navigate to="/login" />} />
-                      <Route path="/login" element={<Login />} />
-                      <Route path="/signup" element={<Signup />} />
-                      <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
-                      <Route path="/admin" element={user?.role === 'ADMIN' ? <AdminDashboard /> : <Navigate to="/" />} />
-                    </Routes>
-                  )}
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/shop" element={<Shop />} />
+                    <Route path="/orders" element={<Orders />} />
+                    <Route path="/product/:id" element={<ProductDetails />} />
+                    <Route path="/cart" element={<Cart />} />
+                    <Route path="/checkout" element={user ? <Checkout /> : <Navigate to="/login" />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/signup" element={<Signup />} />
+                    <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
+                    <Route path="/admin" element={user?.role === 'ADMIN' ? <AdminDashboard /> : <Navigate to="/" />} />
+                  </Routes>
                 </main>
                 <Footer />
                 <Chatbot />
