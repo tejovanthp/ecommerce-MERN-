@@ -17,9 +17,7 @@ import Checkout from './pages/Checkout.tsx';
 import Chatbot from './components/Chatbot.tsx';
 import { INITIAL_PRODUCTS } from './constants.ts';
 
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-  ? "http://localhost:5000/api" 
-  : "/api";
+const API_BASE = "/api";
 
 interface ThemeContextType { theme: 'light' | 'dark'; toggleTheme: () => void; }
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);

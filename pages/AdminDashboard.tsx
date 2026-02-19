@@ -76,7 +76,7 @@ const AdminDashboard: React.FC = () => {
               <p className="text-[10px] font-black uppercase tracking-widest text-red-400">Connection Doctor:</p>
               {!diagnostics.hasEnv && <p className="text-xs text-red-500 font-bold">• MONGO_URI is missing in Vercel settings.</p>}
               {diagnostics.hasEnv && <p className="text-xs text-red-500 font-bold">• URI detected but Atlas is timing out.</p>}
-              <p className="text-[9px] text-slate-500 leading-tight">1. Go to Atlas -> Network Access -> Add IP -> 0.0.0.0/0<br/>2. In Vercel, ensure MONGO_URI password has no &lt; &gt; brackets.</p>
+              <p className="text-[9px] text-slate-500 leading-tight">1. Go to Atlas &rarr; Network Access &rarr; Add IP &rarr; 0.0.0.0/0<br/>2. In Vercel, ensure MONGO_URI password has no &lt; &gt; brackets.</p>
             </div>
           )}
         </div>
