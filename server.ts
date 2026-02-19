@@ -214,8 +214,41 @@ app.post('/api/orders', async (req: Request, res: Response) => {
   try {
     const newOrder = new Order(req.body);
     await newOrder.save();
+    console.log(`✅ Order ${newOrder.id} saved for user ${newOrder.userId}`);
     res.status(201).json(newOrder);
-  } catch (err: any) { res.status(400).json({ error: "Order failed", message: err.message }); }
+  } catch (err: any) { 
+    console.error("❌ Order Save Failed:", err);
+    res.status(400).json({ error: "Order failed", message: err.message }); 
+  }
+});
+
+// --- User Management Routes ---
+
+app.get('/api/users', async (req: Request, res: Response) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
+  try {
+    const users = await User.find().select('-password');
+    res.json(users);
+  } catch (err) { res.status(500).json(err); }
+});
+
+app.put('/api/users/:id', async (req: Request, res: Response) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
+  try {
+    const updated = await User.findOneAndUpdate(
+      { id: req.params.id },
+      { $set: req.body },
+      { new: true }
+    ).select('-password');
+    if (!updated) return res.status(404).json({ error: "User not found" });
+    console.log(`✅ User ${updated.id} updated`);
+    res.json(updated);
+  } catch (err: any) { 
+    console.error("❌ User Update Failed:", err);
+    res.status(400).json({ error: "Update Failed", message: err.message }); 
+  }
 });
 
 // --- Vite Middleware & Server Start ---

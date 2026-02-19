@@ -17,7 +17,7 @@ import Checkout from './pages/Checkout.tsx';
 import Chatbot from './components/Chatbot.tsx';
 import { INITIAL_PRODUCTS } from './constants.ts';
 
-const API_BASE = "/api";
+const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 interface ThemeContextType { theme: 'light' | 'dark'; toggleTheme: () => void; }
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -81,6 +81,18 @@ const App: React.FC = () => {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/users`);
+      if (res.ok) {
+        const cloudUsers = await res.json();
+        setUsers(cloudUsers);
+      }
+    } catch (e) {
+      console.warn("Could not fetch cloud users.");
+    }
+  };
+
   useEffect(() => {
     const savedUser = localStorage.getItem('mycart_user');
     if (savedUser) {
@@ -88,6 +100,7 @@ const App: React.FC = () => {
         const parsed = JSON.parse(savedUser);
         setUser(parsed);
         fetchOrders(parsed.id);
+        if (parsed.role === 'ADMIN') fetchUsers();
       } catch(e) { 
         localStorage.removeItem('mycart_user'); 
       }
@@ -182,6 +195,45 @@ const App: React.FC = () => {
 
   const logout = () => { setUser(null); setOrders([]); localStorage.removeItem('mycart_user'); };
 
+  const updateUser = async (data: Partial<User>) => {
+    if (!user) return;
+    try {
+      const res = await fetch(`${API_BASE}/users/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setUser(updated);
+        localStorage.setItem('mycart_user', JSON.stringify(updated));
+      } else {
+        const err = await res.json();
+        alert(`Update Failed: ${err.error}`);
+      }
+    } catch (e) {
+      alert("Network Error: Could not update profile.");
+    }
+  };
+
+  const toggleUserRole = async (userId: string) => {
+    const targetUser = users.find(u => u.id === userId);
+    if (!targetUser) return;
+    const newRole = targetUser.role === 'ADMIN' ? 'USER' : 'ADMIN';
+    try {
+      const res = await fetch(`${API_BASE}/users/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole })
+      });
+      if (res.ok) {
+        setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
+      }
+    } catch (e) {
+      console.error("Role toggle failed:", e);
+    }
+  };
+
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
@@ -191,39 +243,60 @@ const App: React.FC = () => {
   };
 
   const addProduct = async (p: Product) => {
+    const oldProducts = [...products];
     setProducts([p, ...products]);
     try {
-      await fetch(`${API_BASE}/products`, {
+      const res = await fetch(`${API_BASE}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(p)
       });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(`Cloud storage failed: ${err.error}. Changes will be lost on refresh.`);
+        setProducts(oldProducts);
+      }
     } catch (e) {
-      console.error("Cloud save failed:", e);
+      alert("Network Error: Could not save product to cloud.");
+      setProducts(oldProducts);
     }
   };
 
   const updateProduct = async (p: Product) => {
+    const oldProducts = [...products];
     setProducts(products.map(item => item.id === p.id ? p : item));
     try {
-      await fetch(`${API_BASE}/products/${p.id}`, {
+      const res = await fetch(`${API_BASE}/products/${p.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(p)
       });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(`Cloud update failed: ${err.error}. Changes will be lost on refresh.`);
+        setProducts(oldProducts);
+      }
     } catch (e) {
-      console.error("Cloud update failed:", e);
+      alert("Network Error: Could not update product in cloud.");
+      setProducts(oldProducts);
     }
   };
 
   const deleteProduct = async (id: string) => {
+    const oldProducts = [...products];
     setProducts(products.filter(item => item.id !== id));
     try {
-      await fetch(`${API_BASE}/products/${id}`, {
+      const res = await fetch(`${API_BASE}/products/${id}`, {
         method: 'DELETE'
       });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(`Cloud deletion failed: ${err.error}. Changes will be lost on refresh.`);
+        setProducts(oldProducts);
+      }
     } catch (e) {
-      console.error("Cloud delete failed:", e);
+      alert("Network Error: Could not delete product from cloud.");
+      setProducts(oldProducts);
     }
   };
 
@@ -246,24 +319,35 @@ const App: React.FC = () => {
       createdAt: new Date().toISOString()
     };
 
+    const oldOrders = [...orders];
+    const oldCart = [...cart];
+
     // Optimistic UI update
     setOrders([newOrder, ...orders]);
     clearCart();
 
     try {
-      await fetch(`${API_BASE}/orders`, {
+      const res = await fetch(`${API_BASE}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newOrder)
       });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(`Order sync failed: ${err.error}. Your order was not saved.`);
+        setOrders(oldOrders);
+        setCart(oldCart);
+      }
     } catch (e) {
-      console.error("Order cloud sync failed:", e);
+      alert("Network Error: Could not save your order to the cloud.");
+      setOrders(oldOrders);
+      setCart(oldCart);
     }
   };
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      <AuthContext.Provider value={{ user, users, login, signup, logout, updateUser: async () => {}, toggleUserRole: async () => {}, isAdmin: user?.role === 'ADMIN' }}>
+      <AuthContext.Provider value={{ user, users, login, signup, logout, updateUser, toggleUserRole, isAdmin: user?.role === 'ADMIN' }}>
         <StoreContext.Provider value={{ products, orders, cart, loading, isOnline, diagnostics, addToCart, removeFromCart, updateCartQuantity, clearCart, placeOrder, addProduct, updateProduct, deleteProduct }}>
           <div className={`${theme}`}>
             <HashRouter>
