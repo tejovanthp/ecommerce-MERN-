@@ -11,22 +11,21 @@ app.use(express.json());
 app.use(cors());
 
 // --- Database Connection Management ---
+let isConnected = false;
 const connectToDatabase = async () => {
-  if (mongoose.connection.readyState === 1) return true;
+  if (isConnected && mongoose.connection.readyState === 1) return true;
   
   const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
   
   if (!MONGO_URI) {
-    console.error("❌ Diagnostic: MONGO_URI is MISSING from .env file.");
+    console.error("❌ Diagnostic: MONGO_URI is MISSING.");
     return false;
   }
 
   try {
-    await mongoose.connect(MONGO_URI, {
-      serverSelectionTimeoutMS: 5000, 
-      socketTimeoutMS: 30000,
-    });
-    console.log('✅ Connected to MongoDB Atlas: ' + mongoose.connection.name);
+    await mongoose.connect(MONGO_URI);
+    isConnected = true;
+    console.log('✅ Connected to MongoDB Atlas');
     await seedDatabase();
     return true;
   } catch (err: any) {
