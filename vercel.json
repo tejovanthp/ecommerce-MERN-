@@ -8,14 +8,14 @@
       "config": { "distDir": "dist" }
     },
     {
-      "src": "server.js",
+      "src": "server.ts",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "server.js"
+      "dest": "server.ts"
     },
     {
       "src": "/assets/(.*)",
