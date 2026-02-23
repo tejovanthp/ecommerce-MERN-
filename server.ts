@@ -144,7 +144,11 @@ app.post('/api/login', async (req: Request, res: Response) => {
 
   try {
     const user = await User.findOne({ 
-      $or: [{ id: identifier.toLowerCase() }, { email: identifier.toLowerCase() }] 
+      $or: [
+        { id: identifier.toLowerCase() }, 
+        { email: identifier.toLowerCase() },
+        { name: { $regex: new RegExp(`^${identifier}$`, 'i') } }
+      ] 
     });
     
     if (!user || user.password !== password) {
