@@ -11,9 +11,12 @@ app.use(express.json());
 app.use(cors());
 
 // --- Database Connection Management ---
-let isConnected = false;
+let cachedDb: typeof mongoose | null = null;
+
 const connectToDatabase = async () => {
-  if (isConnected && mongoose.connection.readyState === 1) return true;
+  if (cachedDb && mongoose.connection.readyState === 1) {
+    return true;
+  }
   
   const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
   
@@ -23,8 +26,10 @@ const connectToDatabase = async () => {
   }
 
   try {
-    await mongoose.connect(MONGO_URI);
-    isConnected = true;
+    console.log('⏳ Connecting to MongoDB...');
+    cachedDb = await mongoose.connect(MONGO_URI, {
+      bufferCommands: false,
+    });
     console.log('✅ Connected to MongoDB Atlas');
     await seedDatabase();
     return true;
@@ -256,22 +261,29 @@ async function startServer() {
   const isOk = await connectToDatabase();
   
   if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } catch (e) {
+      console.warn("Vite middleware skipped (likely production build)");
+    }
   } else {
     app.use(express.static('dist'));
   }
 
-  const PORT = 3000;
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-  });
+  const PORT = process.env.PORT || 3000;
+  if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+      console.log(`🚀 Local server running on http://localhost:${PORT}`);
+    });
+  }
 }
 
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'production') {
   startServer();
 }
 
