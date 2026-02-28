@@ -160,3 +160,27 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.6
   }
 ];
+
+export const INITIAL_SALE_EVENTS: any[] = [
+  {
+    id: 's1',
+    title: 'Crimson Winter Sale',
+    description: 'Up to 50% off on premium electronics and fashion. Limited time offer!',
+    discountPercentage: 50,
+    startDate: '2026-01-01',
+    endDate: '2026-03-31',
+    image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&q=80&w=1200',
+    isActive: true,
+    type: 'SALE'
+  },
+  {
+    id: 's2',
+    title: 'Tech Expo 2026',
+    description: 'Join us for the unveiling of the next generation of gadgets. Exclusive early access for members.',
+    startDate: '2026-04-15',
+    endDate: '2026-04-20',
+    image: 'https://images.unsplash.com/photo-1540575861501-7cf05a4b125a?auto=format&fit=crop&q=80&w=1200',
+    isActive: true,
+    type: 'EVENT'
+  }
+];

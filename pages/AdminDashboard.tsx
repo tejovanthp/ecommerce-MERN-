@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../App.tsx';
-import { Product, Order } from '../types.ts';
+import { Product, Order, SaleEvent } from '../types.ts';
 import { 
   BarChart, 
   Bar, 
@@ -17,10 +17,12 @@ import {
 const CATEGORIES = ['Electronics', 'Mobiles', 'Fashion', 'Home', 'Accessories'];
 
 const AdminDashboard: React.FC = () => {
-  const { products, orders, users, addProduct, updateProduct, deleteProduct, updateOrder, isOnline, diagnostics } = useStore();
+  const { products, orders, users, saleEvents, addProduct, updateProduct, deleteProduct, updateOrder, addSaleEvent, updateSaleEvent, deleteSaleEvent, isOnline, diagnostics } = useStore();
   const [showForm, setShowForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'inventory' | 'orders' | 'analytics'>('analytics');
+  const [showSaleForm, setShowSaleForm] = useState(false);
+  const [activeTab, setActiveTab] = useState<'inventory' | 'orders' | 'analytics' | 'sales'>('analytics');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingSale, setEditingSale] = useState<SaleEvent | null>(null);
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
     description: '',
@@ -29,6 +31,17 @@ const AdminDashboard: React.FC = () => {
     stock: 0,
     image: '',
     rating: 4.5
+  });
+
+  const [saleFormData, setSaleFormData] = useState<Partial<SaleEvent>>({
+    title: '',
+    description: '',
+    discountPercentage: 0,
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    image: '',
+    isActive: true,
+    type: 'SALE'
   });
 
   const totalSales = orders.reduce((sum, o) => sum + o.total, 0);
@@ -68,9 +81,20 @@ const AdminDashboard: React.FC = () => {
     setShowForm(true);
   };
 
+  const handleEditSale = (s: SaleEvent) => {
+    setEditingSale(s);
+    setSaleFormData(s);
+    setShowSaleForm(true);
+  };
+
   const generateRandomImage = () => {
     const seed = Math.random().toString(36).substring(7);
     setFormData({ ...formData, image: `https://picsum.photos/seed/${seed}/800/600` });
+  };
+
+  const generateRandomSaleImage = () => {
+    const seed = Math.random().toString(36).substring(7);
+    setSaleFormData({ ...saleFormData, image: `https://picsum.photos/seed/${seed}/1200/400` });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -88,6 +112,23 @@ const AdminDashboard: React.FC = () => {
     setShowForm(false);
     setEditingProduct(null);
     setFormData({ name: '', description: '', price: 0, category: 'Electronics', stock: 0, image: '', rating: 4.5 });
+  };
+
+  const handleSaleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const finalData = {
+      ...saleFormData,
+      image: saleFormData.image || `https://picsum.photos/seed/${saleFormData.title}/1200/400`
+    };
+
+    if (editingSale) {
+      updateSaleEvent({ ...editingSale, ...finalData } as SaleEvent);
+    } else {
+      addSaleEvent({ ...finalData, id: 's' + Math.random().toString(36).substr(2, 6) } as SaleEvent);
+    }
+    setShowSaleForm(false);
+    setEditingSale(null);
+    setSaleFormData({ title: '', description: '', discountPercentage: 0, startDate: new Date().toISOString().split('T')[0], endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], image: '', isActive: true, type: 'SALE' });
   };
 
   const getStatusColor = (status: string) => {
@@ -117,7 +158,7 @@ const AdminDashboard: React.FC = () => {
 
       {/* Tabs */}
       <div className="flex space-x-2 bg-slate-100 dark:bg-slate-900 p-2 rounded-3xl w-fit">
-        {(['analytics', 'inventory', 'orders'] as const).map(tab => (
+        {(['analytics', 'inventory', 'orders', 'sales'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -321,11 +362,149 @@ const AdminDashboard: React.FC = () => {
         </div>
       )}
 
+      {activeTab === 'sales' && (
+        <div className="space-y-8 animate-in fade-in duration-500">
+          <div className="flex justify-between items-center">
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Promotions & Events</h2>
+            <button 
+              onClick={() => { setEditingSale(null); setSaleFormData({ title: '', description: '', discountPercentage: 0, startDate: new Date().toISOString().split('T')[0], endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], image: '', isActive: true, type: 'SALE' }); setShowSaleForm(true); }}
+              className="bg-red-600 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg"
+            >
+              Add New
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {saleEvents.map(event => (
+              <div key={event.id} className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-xl overflow-hidden group">
+                <div className="relative h-48 overflow-hidden">
+                  <img src={event.image} alt={event.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
+                  <div className="absolute top-4 right-4 flex space-x-2">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${event.type === 'SALE' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'}`}>
+                      {event.type}
+                    </span>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${event.isActive ? 'bg-green-500 text-white' : 'bg-slate-500 text-white'}`}>
+                      {event.isActive ? 'Active' : 'Paused'}
+                    </span>
+                  </div>
+                </div>
+                <div className="p-8">
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">{event.title}</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 line-clamp-2">{event.description}</p>
+                  
+                  <div className="flex justify-between items-end">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Duration</p>
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                        {new Date(event.startDate).toLocaleDateString()} - {new Date(event.endDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex space-x-3">
+                      <button onClick={() => handleEditSale(event)} className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-red-600 hover:text-white transition-all">
+                        <i className="fa-solid fa-pen-to-square"></i>
+                      </button>
+                      <button onClick={() => deleteSaleEvent(event.id)} className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-red-600 hover:text-white transition-all">
+                        <i className="fa-solid fa-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showSaleForm && (
+        <div className="fixed inset-0 z-[900] flex items-start justify-center p-6 bg-red-950/30 backdrop-blur-xl overflow-y-auto pt-24 md:pt-32">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[3rem] p-12 shadow-2xl border border-red-50 mb-12">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-3xl font-black text-slate-900 dark:text-white">{editingSale ? 'Update Promotion' : 'Create Promotion'}</h3>
+              <button onClick={() => setShowSaleForm(false)} className="text-slate-400 hover:text-red-600 transition-colors">
+                <i className="fa-solid fa-xmark text-2xl"></i>
+              </button>
+            </div>
+            
+            <form onSubmit={handleSaleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Promotion Title</label>
+                  <input type="text" placeholder="e.g. Summer Clearance" value={saleFormData.title} onChange={e => setSaleFormData({ ...saleFormData, title: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border-none outline-none font-bold text-slate-900 dark:text-white" required />
+                </div>
+                
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Description</label>
+                  <textarea placeholder="Tell the story..." value={saleFormData.description} onChange={e => setSaleFormData({ ...saleFormData, description: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border-none outline-none font-bold text-slate-900 dark:text-white h-32" required />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Type</label>
+                    <select value={saleFormData.type} onChange={e => setSaleFormData({ ...saleFormData, type: e.target.value as any })} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border-none outline-none font-bold text-slate-900 dark:text-white appearance-none">
+                      <option value="SALE">Flash Sale</option>
+                      <option value="EVENT">Special Event</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Discount (%)</label>
+                    <input type="number" placeholder="0" value={saleFormData.discountPercentage} onChange={e => setSaleFormData({ ...saleFormData, discountPercentage: Number(e.target.value) })} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border-none outline-none font-bold text-slate-900 dark:text-white" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Start Date</label>
+                    <input type="date" value={saleFormData.startDate} onChange={e => setSaleFormData({ ...saleFormData, startDate: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border-none outline-none font-bold text-slate-900 dark:text-white" required />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">End Date</label>
+                    <input type="date" value={saleFormData.endDate} onChange={e => setSaleFormData({ ...saleFormData, endDate: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border-none outline-none font-bold text-slate-900 dark:text-white" required />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Banner Image (URL)</label>
+                  <div className="flex space-x-2">
+                    <input type="text" placeholder="https://..." value={saleFormData.image} onChange={e => setSaleFormData({ ...saleFormData, image: e.target.value })} className="flex-1 bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border-none outline-none font-bold text-slate-900 dark:text-white" />
+                    <button type="button" onClick={generateRandomSaleImage} className="bg-slate-100 dark:bg-slate-800 px-4 rounded-xl text-slate-500 hover:text-red-600 transition-colors">
+                      <i className="fa-solid fa-shuffle"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="aspect-[3/1] bg-slate-50 dark:bg-slate-800 rounded-[2rem] overflow-hidden border-2 border-dashed border-slate-200 dark:border-white/10 flex items-center justify-center relative group">
+                  {saleFormData.image ? (
+                    <img src={saleFormData.image} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="text-center p-8">
+                      <i className="fa-solid fa-image text-4xl text-slate-300 mb-4 block"></i>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Banner Preview</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center space-x-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                  <input type="checkbox" checked={saleFormData.isActive} onChange={e => setSaleFormData({ ...saleFormData, isActive: e.target.checked })} className="w-5 h-5 accent-red-600" />
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Active Promotion</span>
+                </div>
+
+                <div className="pt-6 space-y-4">
+                  <button type="submit" className="w-full bg-red-600 text-white py-6 rounded-2xl font-black text-xl shadow-xl hover:bg-red-700 transition-all active:scale-[0.98]">
+                    {editingSale ? 'Update Promotion' : 'Launch Promotion'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {showForm && (
         <div className="fixed inset-0 z-[900] flex items-start justify-center p-6 bg-red-950/30 backdrop-blur-xl overflow-y-auto pt-24 md:pt-32">
           <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[3rem] p-12 shadow-2xl border border-red-50 mb-12">
             <div className="flex justify-between items-center mb-8">
-              <h3 className="text-3xl font-black text-slate-900 dark:text-white">{editingProduct ? 'Update Item' : 'Add Masterpiece'}</h3>
+              <h3 className="text-3xl font-black text-slate-900 dark:text-white">{editingProduct ? 'Update Product' : 'Add Product'}</h3>
               <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-red-600 transition-colors">
                 <i className="fa-solid fa-xmark text-2xl"></i>
               </button>
@@ -386,7 +565,7 @@ const AdminDashboard: React.FC = () => {
 
                 <div className="pt-6 space-y-4">
                   <button type="submit" className="w-full bg-red-600 text-white py-6 rounded-2xl font-black text-xl shadow-xl hover:bg-red-700 transition-all active:scale-[0.98]">
-                    {editingProduct ? 'Commit Changes' : 'Publish Catalog'}
+                    {editingProduct ? 'Update Product' : 'Add Product'}
                   </button>
                   <button type="button" onClick={() => setShowForm(false)} className="w-full text-slate-400 font-black uppercase text-xs tracking-widest hover:text-red-600 transition-colors">
                     Discard Draft

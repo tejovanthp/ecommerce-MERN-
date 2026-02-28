@@ -4,15 +4,18 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useStore, useAuth } from '../App.tsx';
 
 const Cart: React.FC = () => {
-  const { cart, removeFromCart, updateCartQuantity } = useStore();
+  const { cart, removeFromCart, updateCartQuantity, getActiveDiscount } = useStore();
   const { user } = useAuth();
   const navigate = useNavigate();
 
   const [itemToRemove, setItemToRemove] = useState<string | null>(null);
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shipping = subtotal > 1999 ? 0 : 99;
-  const total = subtotal + shipping;
+  const discountPercent = getActiveDiscount();
+  const discountAmount = (subtotal * discountPercent) / 100;
+  const discountedSubtotal = subtotal - discountAmount;
+  const shipping = discountedSubtotal > 1999 ? 0 : 99;
+  const total = discountedSubtotal + shipping;
 
   const handleCheckout = () => {
     if (!user) {
@@ -110,6 +113,12 @@ const Cart: React.FC = () => {
                 <span>Items Subtotal</span>
                 <span className="text-white">₹{subtotal.toLocaleString('en-IN')}</span>
               </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-green-400 font-bold animate-pulse">
+                  <span>Sale Discount ({discountPercent}%)</span>
+                  <span>-₹{discountAmount.toLocaleString('en-IN')}</span>
+                </div>
+              )}
               <div className="flex justify-between text-red-200 dark:text-slate-400 font-bold">
                 <span>Shipping Fee</span>
                 <span className={shipping === 0 ? 'text-green-400' : 'text-white'}>

@@ -7,7 +7,7 @@ type Step = 'shipping' | 'payment' | 'processing' | 'success';
 type PaymentMethod = 'card' | 'upi' | 'netbanking' | 'cod';
 
 const Checkout: React.FC = () => {
-  const { cart, placeOrder } = useStore();
+  const { cart, placeOrder, getActiveDiscount } = useStore();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -22,7 +22,10 @@ const Checkout: React.FC = () => {
 
   const [cartSnapshot, setCartSnapshot] = useState<any[]>([]);
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const total = subtotal > 1999 ? subtotal : subtotal + 99;
+  const discountPercent = getActiveDiscount();
+  const discountAmount = (subtotal * discountPercent) / 100;
+  const discountedSubtotal = subtotal - discountAmount;
+  const total = discountedSubtotal > 1999 ? discountedSubtotal : discountedSubtotal + 99;
 
   useEffect(() => {
     if (cart.length === 0 && step !== 'success') {
@@ -130,6 +133,12 @@ const Checkout: React.FC = () => {
               ))}
             </div>
             <div className="pt-6 border-t border-slate-50 dark:border-white/5 space-y-2">
+              {discountAmount > 0 && (
+                <div className="flex justify-between items-center text-green-500 font-bold text-xs uppercase tracking-widest">
+                  <span>Sale Savings</span>
+                  <span>-₹{discountAmount.toLocaleString('en-IN')}</span>
+                </div>
+              )}
               <div className="flex justify-between items-end pt-2">
                 <span className="text-[10px] font-black text-red-600 uppercase tracking-[0.2em]">Total Investment</span>
                 <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">₹{total.toLocaleString('en-IN')}</span>
@@ -411,6 +420,12 @@ const Checkout: React.FC = () => {
            </div>
 
            <div className="space-y-6 pt-6 border-t border-white/10">
+              {discountAmount > 0 && (
+                <div className="flex justify-between items-center text-green-400 font-bold text-xs uppercase tracking-widest">
+                  <span>Sale Discount</span>
+                  <span>-₹{discountAmount.toLocaleString('en-IN')}</span>
+                </div>
+              )}
               <div className="pt-6 flex justify-between items-end">
                  <div>
                     <p className="text-red-300 dark:text-slate-500 text-[10px] font-black uppercase tracking-[0.3em]">Total Investment</p>

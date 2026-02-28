@@ -16,6 +16,8 @@
     "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
     "react-router-dom": "https://esm.sh/react-router-dom@7.1.0?external=react,react-dom",
     "@google/genai": "https://esm.sh/@google/genai@1.40.0",
+    "framer-motion": "https://esm.sh/framer-motion@11.11.11?external=react,react-dom",
+    "motion/react": "https://esm.sh/motion@11.11.11/react?external=react,react-dom",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "cors": "https://esm.sh/cors@^2.8.6",
     "express": "https://esm.sh/express@^5.2.1",
@@ -27,8 +29,6 @@
     <script>
       window.process = { env: { API_KEY: "" } };
       
-      // Immediate failsafe: Hide loader after 3 seconds no matter what
-      // This prevents the "infinite buffering" even if a script fails to load
       setTimeout(() => {
         const loader = document.getElementById('initial-loader-overlay');
         if (loader) {
@@ -41,16 +41,49 @@
         darkMode: 'class',
         theme: {
           extend: {
-            colors: { slate: { 950: '#020617' } }
+            colors: { 
+              slate: { 950: '#020617' }
+            },
+            animation: {
+              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'float': 'float 6s ease-in-out infinite',
+            },
+            keyframes: {
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-20px)' },
+              }
+            }
           }
         }
       }
     </script>
     <style>
-      ::-webkit-scrollbar { width: 8px; }
+      ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: #000; }
-      ::-webkit-scrollbar-thumb { background: #dc2626; border-radius: 10px; }
-      body { background-color: #000000; margin: 0; padding: 0; overflow-x: hidden; }
+      ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 10px; }
+      body { margin: 0; padding: 0; overflow-x: hidden; }
+      
+      .glass {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      
+      .glass-dark {
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .text-gradient {
+        background: linear-gradient(to right, #fff, #94a3b8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
       @keyframes spin { to { transform: rotate(360deg); } }
       #initial-loader-overlay {
         position: fixed;
@@ -65,10 +98,10 @@
       }
     </style>
   </head>
-  <body class="bg-black text-slate-100 font-sans">
+  <body class="bg-white dark:bg-black text-slate-900 dark:text-slate-100 font-sans">
     <div id="initial-loader-overlay">
-      <div style="width: 50px; height: 50px; border: 3px solid rgba(220, 38, 38, 0.1); border-top-color: #dc2626; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-      <div style="color: #dc2626; font-weight: 900; letter-spacing: 0.3em; font-size: 10px; margin-top: 20px; text-transform: uppercase;">Initializing MyCart Elite</div>
+      <div style="width: 50px; height: 50px; border: 3px solid rgba(99, 102, 241, 0.1); border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+      <div style="color: #6366f1; font-weight: 900; letter-spacing: 0.3em; font-size: 10px; margin-top: 20px; text-transform: uppercase;">Initializing MyCart</div>
     </div>
     <div id="root"></div>
     <script type="module" src="index.tsx"></script>

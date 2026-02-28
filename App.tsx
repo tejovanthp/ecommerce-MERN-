@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { User, Product, CartItem, Order, UserRole } from './types.ts';
+import { User, Product, CartItem, Order, UserRole, SaleEvent } from './types.ts';
 import Navbar from './components/Navbar.tsx';
 import Footer from './components/Footer.tsx';
 import Home from './pages/Home.tsx';
@@ -15,7 +15,7 @@ import Signup from './pages/Signup.tsx';
 import AdminDashboard from './pages/AdminDashboard.tsx';
 import Checkout from './pages/Checkout.tsx';
 import Chatbot from './components/Chatbot.tsx';
-import { INITIAL_PRODUCTS } from './constants.ts';
+import { INITIAL_PRODUCTS, INITIAL_SALE_EVENTS } from './constants.ts';
 
 const API_BASE = "/api";
 
@@ -44,6 +44,7 @@ interface StoreContextType {
   isOnline: boolean;
   diagnostics: any;
   users: User[];
+  saleEvents: SaleEvent[];
   addToCart: (product: Product) => void;
   removeFromCart: (productId: string) => void;
   updateCartQuantity: (productId: string, qty: number) => void;
@@ -53,6 +54,10 @@ interface StoreContextType {
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   updateOrder: (orderId: string, status: string) => Promise<void>;
+  addSaleEvent: (event: SaleEvent) => Promise<void>;
+  updateSaleEvent: (event: SaleEvent) => Promise<void>;
+  deleteSaleEvent: (eventId: string) => Promise<void>;
+  getActiveDiscount: () => number;
 }
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 export const useStore = () => { const context = useContext(StoreContext); if (!context) throw new Error("useStore error"); return context; };
@@ -62,6 +67,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [saleEvents, setSaleEvents] = useState<SaleEvent[]>(INITIAL_SALE_EVENTS);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
@@ -123,6 +129,11 @@ const App: React.FC = () => {
           if (prodRes.ok) {
             const cloudProds = await prodRes.json();
             if (Array.isArray(cloudProds) && cloudProds.length > 0) setProducts(cloudProds);
+          }
+          const saleRes = await fetch(`${API_BASE}/sale-events`);
+          if (saleRes.ok) {
+            const cloudSales = await saleRes.json();
+            if (Array.isArray(cloudSales) && cloudSales.length > 0) setSaleEvents(cloudSales);
           }
         }
       } catch (err) {
@@ -312,7 +323,10 @@ const App: React.FC = () => {
     if (!user) return;
     
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const total = subtotal > 1999 ? subtotal : subtotal + 99;
+    const discountPercent = getActiveDiscount();
+    const discountAmount = (subtotal * discountPercent) / 100;
+    const discountedSubtotal = subtotal - discountAmount;
+    const total = discountedSubtotal > 1999 ? discountedSubtotal : discountedSubtotal + 99;
 
     const newOrder: Order = {
       id: orderData?.id || 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
@@ -369,10 +383,71 @@ const App: React.FC = () => {
     }
   };
 
+  const addSaleEvent = async (event: SaleEvent) => {
+    const oldEvents = [...saleEvents];
+    setSaleEvents([event, ...saleEvents]);
+    try {
+      const res = await fetch(`${API_BASE}/sale-events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(event)
+      });
+      if (!res.ok) {
+        setSaleEvents(oldEvents);
+      }
+    } catch (e) {
+      setSaleEvents(oldEvents);
+    }
+  };
+
+  const updateSaleEvent = async (event: SaleEvent) => {
+    const oldEvents = [...saleEvents];
+    setSaleEvents(saleEvents.map(e => e.id === event.id ? event : e));
+    try {
+      const res = await fetch(`${API_BASE}/sale-events/${event.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(event)
+      });
+      if (!res.ok) {
+        setSaleEvents(oldEvents);
+      }
+    } catch (e) {
+      setSaleEvents(oldEvents);
+    }
+  };
+
+  const deleteSaleEvent = async (id: string) => {
+    const oldEvents = [...saleEvents];
+    setSaleEvents(saleEvents.filter(e => e.id !== id));
+    try {
+      const res = await fetch(`${API_BASE}/sale-events/${id}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        setSaleEvents(oldEvents);
+      }
+    } catch (e) {
+      setSaleEvents(oldEvents);
+    }
+  };
+
+  const getActiveDiscount = () => {
+    const now = new Date().toISOString().split('T')[0];
+    const activeSales = saleEvents.filter(s => 
+      s.isActive && 
+      s.type === 'SALE' && 
+      s.startDate <= now && 
+      s.endDate >= now
+    );
+    if (activeSales.length === 0) return 0;
+    return Math.max(...activeSales.map(s => s.discountPercentage || 0));
+  };
+
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       <AuthContext.Provider value={{ user, users, login, signup, logout, updateUser, toggleUserRole, isAdmin: user?.role === 'ADMIN' }}>
-        <StoreContext.Provider value={{ products, orders, cart, loading, isOnline, diagnostics, users, addToCart, removeFromCart, updateCartQuantity, clearCart, placeOrder, addProduct, updateProduct, deleteProduct, updateOrder }}>
+        <StoreContext.Provider value={{ products, orders, cart, loading, isOnline, diagnostics, users, saleEvents, addToCart, removeFromCart, updateCartQuantity, clearCart, placeOrder, addProduct, updateProduct, deleteProduct, updateOrder, addSaleEvent, updateSaleEvent, deleteSaleEvent, getActiveDiscount }}>
           <div className={`${theme}`}>
             <HashRouter>
               <div className="flex flex-col min-h-screen bg-white dark:bg-black text-slate-900 dark:text-slate-100 transition-colors duration-500 font-sans">

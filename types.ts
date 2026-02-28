@@ -42,3 +42,15 @@ export interface Category {
   name: string;
   icon: string;
 }
+
+export interface SaleEvent {
+  id: string;
+  title: string;
+  description: string;
+  discountPercentage?: number;
+  startDate: string;
+  endDate: string;
+  image: string;
+  isActive: boolean;
+  type: 'SALE' | 'EVENT';
+}

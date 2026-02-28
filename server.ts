@@ -71,18 +71,38 @@ const OrderSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+const SaleEventSchema = new mongoose.Schema({
+  id: { type: String, unique: true, required: true },
+  title: String,
+  description: String,
+  discountPercentage: Number,
+  startDate: String,
+  endDate: String,
+  image: String,
+  isActive: { type: Boolean, default: true },
+  type: { type: String, enum: ['SALE', 'EVENT'], default: 'SALE' }
+});
+
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 const Product = mongoose.models.Product || mongoose.model('Product', ProductSchema);
 const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);
+const SaleEvent = mongoose.models.SaleEvent || mongoose.model('SaleEvent', SaleEventSchema);
 
 // --- Seeding Logic ---
 const seedDatabase = async () => {
   try {
+    const { INITIAL_SALE_EVENTS } = await import('./constants.ts');
     const count = await Product.countDocuments();
     if (count === 0) {
       console.log('🌱 Seeding database with initial products...');
       await Product.insertMany(INITIAL_PRODUCTS);
       console.log('✅ Database seeded successfully.');
+    }
+    const saleCount = await SaleEvent.countDocuments();
+    if (saleCount === 0) {
+      console.log('🌱 Seeding database with initial sale events...');
+      await SaleEvent.insertMany(INITIAL_SALE_EVENTS);
+      console.log('✅ Sale events seeded successfully.');
     }
   } catch (err) {
     console.error('❌ Seeding failed:', err);
@@ -280,6 +300,51 @@ app.put('/api/users/:id', async (req: Request, res: Response) => {
     console.error("❌ User Update Failed:", err);
     res.status(400).json({ error: "Update Failed", message: err.message }); 
   }
+});
+
+// --- Sale & Event Routes ---
+
+app.get('/api/sale-events', async (req: Request, res: Response) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
+  try {
+    const events = await SaleEvent.find().sort({ startDate: -1 });
+    res.json(events);
+  } catch (err) { res.status(500).json(err); }
+});
+
+app.post('/api/sale-events', async (req: Request, res: Response) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
+  try {
+    const event = new SaleEvent(req.body);
+    await event.save();
+    res.status(201).json(event);
+  } catch (err: any) { res.status(400).json({ error: "Storage Failed", message: err.message }); }
+});
+
+app.put('/api/sale-events/:id', async (req: Request, res: Response) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
+  try {
+    const updated = await SaleEvent.findOneAndUpdate(
+      { id: req.params.id },
+      { $set: req.body },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ error: "Event not found" });
+    res.json(updated);
+  } catch (err: any) { res.status(400).json({ error: "Update Failed", message: err.message }); }
+});
+
+app.delete('/api/sale-events/:id', async (req: Request, res: Response) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
+  try {
+    const deleted = await SaleEvent.findOneAndDelete({ id: req.params.id });
+    if (!deleted) return res.status(404).json({ error: "Event not found" });
+    res.json({ success: true, message: "Event deleted" });
+  } catch (err: any) { res.status(500).json({ error: "Deletion Failed", message: err.message }); }
 });
 
 // --- Vite Middleware & Server Start ---

@@ -5,8 +5,9 @@ import { useStore } from '../App.tsx';
 import ProductCard from '../components/ProductCard.tsx';
 
 const Home: React.FC = () => {
-  const { products } = useStore();
+  const { products, saleEvents } = useStore();
   const featured = products.slice(0, 4);
+  const activeSales = saleEvents.filter(s => s.isActive);
 
   return (
     <div className="space-y-24 pb-20">
@@ -71,6 +72,40 @@ const Home: React.FC = () => {
           ))}
         </div>
       </section>
+
+      {/* Sales & Events Section */}
+      {activeSales.length > 0 && (
+        <section className="space-y-12">
+          <div className="px-4">
+            <h2 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tighter mb-2">Exclusive Events</h2>
+            <p className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-[0.2em] text-xs">Limited Time Opportunities</p>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            {activeSales.map(sale => (
+              <div key={sale.id} className="relative h-[400px] rounded-[3rem] overflow-hidden group shadow-2xl border border-slate-100 dark:border-white/5">
+                <img src={sale.image} alt={sale.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" referrerPolicy="no-referrer" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+                <div className="absolute inset-0 p-12 flex flex-col justify-end">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${sale.type === 'SALE' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'}`}>
+                      {sale.type === 'SALE' ? `${sale.discountPercentage}% OFF` : 'EVENT'}
+                    </span>
+                    <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">
+                      Ends {new Date(sale.endDate).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <h3 className="text-4xl font-black text-white mb-4 tracking-tight">{sale.title}</h3>
+                  <p className="text-slate-300 text-lg mb-8 line-clamp-2 max-w-xl">{sale.description}</p>
+                  <Link to="/shop" className="bg-white text-black px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all w-fit shadow-xl">
+                    Explore Now
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Brand Values Banner */}
       <section className="bg-white dark:bg-slate-900/50 rounded-[4rem] p-12 md:p-20 shadow-2xl shadow-red-500/5 dark:shadow-none border border-slate-100 dark:border-white/5 transition-all duration-300">
