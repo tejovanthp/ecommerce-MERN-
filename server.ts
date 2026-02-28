@@ -207,6 +207,15 @@ app.delete('/api/products/:id', async (req: Request, res: Response) => {
 
 // --- Order Routes ---
 
+app.get('/api/orders', async (req: Request, res: Response) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
+  try {
+    const orders = await Order.find().sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (err) { res.status(500).json(err); }
+});
+
 app.get('/api/orders/:userId', async (req: Request, res: Response) => {
   const isOk = await connectToDatabase();
   if (!isOk) return res.status(503).json({ error: 'Database offline' });
@@ -228,6 +237,20 @@ app.post('/api/orders', async (req: Request, res: Response) => {
     console.error("❌ Order Save Failed:", err);
     res.status(400).json({ error: "Order failed", message: err.message }); 
   }
+});
+
+app.put('/api/orders/:id', async (req: Request, res: Response) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
+  try {
+    const updated = await Order.findOneAndUpdate(
+      { id: req.params.id },
+      { $set: req.body },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ error: "Order not found" });
+    res.json(updated);
+  } catch (err: any) { res.status(500).json({ error: "Update Failed", message: err.message }); }
 });
 
 // --- User Management Routes ---

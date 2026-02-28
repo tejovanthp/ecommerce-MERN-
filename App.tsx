@@ -43,6 +43,7 @@ interface StoreContextType {
   loading: boolean;
   isOnline: boolean;
   diagnostics: any;
+  users: User[];
   addToCart: (product: Product) => void;
   removeFromCart: (productId: string) => void;
   updateCartQuantity: (productId: string, qty: number) => void;
@@ -51,6 +52,7 @@ interface StoreContextType {
   addProduct: (product: Product) => Promise<void>;
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
+  updateOrder: (orderId: string, status: string) => Promise<void>;
 }
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 export const useStore = () => { const context = useContext(StoreContext); if (!context) throw new Error("useStore error"); return context; };
@@ -69,9 +71,10 @@ const App: React.FC = () => {
 
   const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
 
-  const fetchOrders = async (userId: string) => {
+  const fetchOrders = async (userId: string, role?: string) => {
     try {
-      const res = await fetch(`${API_BASE}/orders/${userId}`);
+      const endpoint = role === 'ADMIN' ? `${API_BASE}/orders` : `${API_BASE}/orders/${userId}`;
+      const res = await fetch(endpoint);
       if (res.ok) {
         const cloudOrders = await res.json();
         setOrders(cloudOrders);
@@ -99,7 +102,7 @@ const App: React.FC = () => {
       try { 
         const parsed = JSON.parse(savedUser);
         setUser(parsed);
-        fetchOrders(parsed.id);
+        fetchOrders(parsed.id, parsed.role);
         if (parsed.role === 'ADMIN') fetchUsers();
       } catch(e) { 
         localStorage.removeItem('mycart_user'); 
@@ -161,7 +164,8 @@ const App: React.FC = () => {
         const loggedInUser = await res.json();
         setUser(loggedInUser);
         localStorage.setItem('mycart_user', JSON.stringify(loggedInUser));
-        fetchOrders(loggedInUser.id);
+        fetchOrders(loggedInUser.id, loggedInUser.role);
+        if (loggedInUser.role === 'ADMIN') fetchUsers();
       } else {
         const err = await res.json();
         alert(`Access Error: ${err.error || 'Invalid credentials'}`);
@@ -345,10 +349,30 @@ const App: React.FC = () => {
     }
   };
 
+  const updateOrder = async (orderId: string, status: string) => {
+    const oldOrders = [...orders];
+    setOrders(orders.map(o => o.id === orderId ? { ...o, status: status as any } : o));
+    try {
+      const res = await fetch(`${API_BASE}/orders/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(`Order update failed: ${err.error}`);
+        setOrders(oldOrders);
+      }
+    } catch (e) {
+      alert("Network Error: Could not update order.");
+      setOrders(oldOrders);
+    }
+  };
+
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       <AuthContext.Provider value={{ user, users, login, signup, logout, updateUser, toggleUserRole, isAdmin: user?.role === 'ADMIN' }}>
-        <StoreContext.Provider value={{ products, orders, cart, loading, isOnline, diagnostics, addToCart, removeFromCart, updateCartQuantity, clearCart, placeOrder, addProduct, updateProduct, deleteProduct }}>
+        <StoreContext.Provider value={{ products, orders, cart, loading, isOnline, diagnostics, users, addToCart, removeFromCart, updateCartQuantity, clearCart, placeOrder, addProduct, updateProduct, deleteProduct, updateOrder }}>
           <div className={`${theme}`}>
             <HashRouter>
               <div className="flex flex-col min-h-screen bg-white dark:bg-black text-slate-900 dark:text-slate-100 transition-colors duration-500 font-sans">

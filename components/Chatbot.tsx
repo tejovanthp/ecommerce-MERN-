@@ -81,7 +81,7 @@ const Chatbot: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-8 right-8 z-[100] flex flex-col items-end">
+    <div className="fixed bottom-8 right-8 z-[800] flex flex-col items-end">
       {isOpen && (
         <div className="bg-white/95 dark:bg-slate-900/90 backdrop-blur-3xl w-[380px] md:w-[450px] h-[600px] rounded-[3.5rem] shadow-[0_50px_100px_rgba(220,38,38,0.25)] border border-red-100 dark:border-white/10 flex flex-col overflow-hidden mb-6 ring-1 ring-white/20">
           {/* Header */}
@@ -172,12 +172,6 @@ const Chatbot: React.FC = () => {
         }`}
       >
         <i className={`fa-solid ${isOpen ? 'fa-xmark' : 'fa-robot'} text-3xl`}></i>
-        {!isOpen && (
-          <span className="absolute -top-1 -right-1 flex h-6 w-6">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-6 w-6 bg-yellow-500 border-2 border-red-600"></span>
-          </span>
-        )}
       </button>
     </div>
   );

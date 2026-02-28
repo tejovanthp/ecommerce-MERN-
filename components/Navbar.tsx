@@ -16,7 +16,7 @@ const Navbar: React.FC = () => {
   ];
 
   return (
-    <nav className="bg-red-700 shadow-xl sticky top-0 z-[90] border-b border-red-800 transition-all duration-300">
+    <nav className="bg-red-700 shadow-xl sticky top-0 z-[1000] border-b border-red-800 transition-all duration-300">
       <div className="container mx-auto px-4 flex justify-between items-center h-16 md:h-20">
         <div className="flex items-center space-x-4">
           <Link to="/" className="text-2xl md:text-3xl font-black text-white tracking-tighter flex items-center group">
