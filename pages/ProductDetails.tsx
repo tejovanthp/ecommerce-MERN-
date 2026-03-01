@@ -50,8 +50,8 @@ const ProductDetails: React.FC = () => {
           <div className="space-y-6">
             <div className="flex items-center space-x-4">
               <span className="bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border border-red-100 dark:border-white/5">{product.category}</span>
-              <div className="flex items-center text-green-600 dark:text-green-400 font-black text-[10px] uppercase tracking-widest">
-                <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+              <div className="flex items-center text-red-600 dark:text-red-400 font-black text-[10px] uppercase tracking-widest">
+                <span className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span>
                 In Stock & Ready
               </div>
             </div>
@@ -59,7 +59,7 @@ const ProductDetails: React.FC = () => {
             <h1 className="text-5xl md:text-7xl font-black text-slate-950 dark:text-white leading-[0.85] tracking-tighter">{product.name}</h1>
             
             <div className="flex items-center space-x-6">
-              <div className="flex items-center bg-yellow-400 text-yellow-950 px-4 py-1.5 rounded-xl font-black text-sm">
+              <div className="flex items-center bg-red-600 text-white px-4 py-1.5 rounded-xl font-black text-sm">
                 <span className="mr-2">{product.rating}</span>
                 <i className="fa-solid fa-star text-xs"></i>
               </div>

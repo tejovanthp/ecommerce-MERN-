@@ -67,7 +67,7 @@ const Cart: React.FC = () => {
                 </Link>
                 <div className="flex items-center justify-center md:justify-start space-x-3 mt-2">
                   <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase px-2 py-1 rounded-md">{item.category}</span>
-                  <span className="text-green-600 dark:text-green-400 text-xs font-bold">Seller: mycart Retail</span>
+                  <span className="text-red-600 dark:text-red-400 text-xs font-bold">Seller: mycart Retail</span>
                 </div>
                 
                 <div className="flex flex-col md:flex-row items-center justify-between mt-8 space-y-4 md:space-y-0">
@@ -114,14 +114,14 @@ const Cart: React.FC = () => {
                 <span className="text-white">₹{subtotal.toLocaleString('en-IN')}</span>
               </div>
               {discountAmount > 0 && (
-                <div className="flex justify-between text-green-400 font-bold animate-pulse">
+                <div className="flex justify-between text-red-400 font-bold animate-pulse">
                   <span>Sale Discount ({discountPercent}%)</span>
                   <span>-₹{discountAmount.toLocaleString('en-IN')}</span>
                 </div>
               )}
               <div className="flex justify-between text-red-200 dark:text-slate-400 font-bold">
                 <span>Shipping Fee</span>
-                <span className={shipping === 0 ? 'text-green-400' : 'text-white'}>
+                <span className={shipping === 0 ? 'text-red-400' : 'text-white'}>
                   {shipping === 0 ? 'FREE' : `₹${shipping}`}
                 </span>
               </div>

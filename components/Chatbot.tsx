@@ -89,15 +89,15 @@ const Chatbot: React.FC = () => {
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
             <div className="flex items-center space-x-4 relative z-10">
               <div className="w-14 h-14 bg-white/10 backdrop-blur-xl rounded-2xl flex items-center justify-center border border-white/20 shadow-inner group">
-                <i className="fa-solid fa-crown text-yellow-400 text-xl"></i>
+                <i className="fa-solid fa-crown text-red-400 text-xl"></i>
               </div>
               <div>
                 <h3 className="font-black text-sm uppercase tracking-[0.2em] flex items-center">
                   Crimson Pro
-                  <span className="ml-2 bg-yellow-400 text-red-950 text-[8px] px-1.5 py-0.5 rounded font-black">ACTIVE</span>
+                  <span className="ml-2 bg-red-400 text-white text-[8px] px-1.5 py-0.5 rounded font-black">ACTIVE</span>
                 </h3>
                 <p className="text-[9px] text-red-100 font-black uppercase tracking-[0.2em] flex items-center mt-1">
-                  <span className="w-2 h-2 bg-green-400 rounded-full mr-2 shadow-[0_0_8px_rgba(74,222,128,0.8)]"></span>
+                  <span className="w-2 h-2 bg-red-400 rounded-full mr-2 shadow-[0_0_8px_rgba(248,113,113,0.8)]"></span>
                   Link Sync Active
                 </p>
               </div>

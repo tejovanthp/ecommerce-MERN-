@@ -106,7 +106,7 @@ const Checkout: React.FC = () => {
     return (
       <div className="max-w-4xl mx-auto py-12 px-4 space-y-12 animate-in fade-in zoom-in-95 duration-700">
         <div className="text-center space-y-6">
-          <div className="w-24 h-24 bg-green-500 text-white rounded-[2rem] flex items-center justify-center mx-auto shadow-2xl shadow-green-500/40 transform rotate-6">
+          <div className="w-24 h-24 bg-red-600 text-white rounded-[2rem] flex items-center justify-center mx-auto shadow-2xl shadow-red-600/40 transform rotate-6">
             <i className="fa-solid fa-check text-4xl"></i>
           </div>
           <div className="space-y-2">
@@ -134,7 +134,7 @@ const Checkout: React.FC = () => {
             </div>
             <div className="pt-6 border-t border-slate-50 dark:border-white/5 space-y-2">
               {discountAmount > 0 && (
-                <div className="flex justify-between items-center text-green-500 font-bold text-xs uppercase tracking-widest">
+                <div className="flex justify-between items-center text-red-500 font-bold text-xs uppercase tracking-widest">
                   <span>Sale Savings</span>
                   <span>-₹{discountAmount.toLocaleString('en-IN')}</span>
                 </div>
@@ -172,7 +172,7 @@ const Checkout: React.FC = () => {
                 <p className="font-black text-slate-900 dark:text-white uppercase text-xs tracking-widest">
                   {method === 'card' ? 'Vault Credit Card' : method === 'upi' ? 'Instant UPI' : method === 'cod' ? 'Cash on Delivery' : 'Net Banking'}
                 </p>
-                <span className="bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest">Confirmed</span>
+                <span className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest">Confirmed</span>
               </div>
             </div>
           </div>
@@ -190,7 +190,7 @@ const Checkout: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-12 gap-16 pb-24">
       <div className="lg:col-span-7 space-y-12">
         <div className="flex items-center space-x-6">
-           <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black transition-all ${step === 'shipping' ? 'bg-red-600 text-white shadow-lg shadow-red-500/20' : 'bg-green-500 text-white'}`}>
+           <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black transition-all ${step === 'shipping' ? 'bg-red-600 text-white shadow-lg shadow-red-500/20' : 'bg-red-600 text-white'}`}>
              {step === 'shipping' ? '1' : <i className="fa-solid fa-check"></i>}
            </div>
            <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">Shipping Destination</h2>
@@ -381,11 +381,11 @@ const Checkout: React.FC = () => {
                 <div className="p-8 bg-red-50 dark:bg-red-900/10 rounded-[2rem] border border-red-100 dark:border-white/5">
                    <ul className="space-y-4">
                       <li className="flex items-center space-x-3 text-slate-700 dark:text-slate-300">
-                         <i className="fa-solid fa-circle-check text-green-500"></i>
+                         <i className="fa-solid fa-circle-check text-red-500"></i>
                          <span className="text-sm font-bold">Pay ₹{total.toLocaleString('en-IN')} only when you receive items.</span>
                       </li>
                       <li className="flex items-center space-x-3 text-slate-700 dark:text-slate-300">
-                         <i className="fa-solid fa-circle-check text-green-500"></i>
+                         <i className="fa-solid fa-circle-check text-red-500"></i>
                          <span className="text-sm font-bold">Crimson quality check guaranteed before payment.</span>
                       </li>
                    </ul>

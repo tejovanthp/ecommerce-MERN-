@@ -34,7 +34,7 @@ const Profile: React.FC = () => {
       <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-red-50 dark:border-white/5 flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-10 shadow-2xl shadow-red-500/5 transition-all duration-300">
         <div className="relative">
           <img src={user?.avatar} alt={user?.name} className="w-32 h-32 rounded-[2rem] border-4 border-white dark:border-slate-800 shadow-xl object-cover" />
-          <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 border-4 border-white dark:border-slate-800 rounded-full shadow-lg"></div>
+          <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-red-500 border-4 border-white dark:border-slate-800 rounded-full shadow-lg"></div>
         </div>
         <div className="flex-grow text-center md:text-left space-y-2">
           <div className="flex flex-wrap justify-center md:justify-start items-center gap-3">
@@ -191,7 +191,7 @@ const Profile: React.FC = () => {
               <div className="p-10 bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] border border-slate-100 dark:border-white/5 space-y-8">
                 <div className="flex justify-between items-center">
                   <h4 className="font-black text-slate-800 dark:text-slate-300 uppercase text-[10px] tracking-[0.2em]">Password Shield</h4>
-                  <span className="text-[9px] font-black bg-green-100 dark:bg-green-950/30 text-green-600 px-3 py-1 rounded-lg">VERIFIED</span>
+                  <span className="text-[9px] font-black bg-red-100 dark:bg-red-950/30 text-red-600 px-3 py-1 rounded-lg">VERIFIED</span>
                 </div>
                 <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed font-medium">Rotating your access codes regularly ensures your digital vault remains impervious to external intrusion.</p>
                 <button onClick={() => alert("Identity verification link sent.")} className="w-full bg-white dark:bg-slate-700 border-2 border-slate-100 dark:border-white/10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-red-600 hover:text-red-600 transition-all text-slate-900 dark:text-white shadow-sm">Initialize Reset</button>
@@ -200,7 +200,7 @@ const Profile: React.FC = () => {
               <div className="p-10 bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] border border-slate-100 dark:border-white/5 space-y-8">
                 <div className="flex justify-between items-center">
                   <h4 className="font-black text-slate-800 dark:text-slate-300 uppercase text-[10px] tracking-[0.2em]">Multi-Factor Matrix</h4>
-                  <span className={`text-[9px] font-black px-3 py-1 rounded-lg ${mfaEnabled ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                  <span className={`text-[9px] font-black px-3 py-1 rounded-lg ${mfaEnabled ? 'bg-red-100 text-red-600' : 'bg-red-100 text-red-600'}`}>
                     {mfaEnabled ? 'OPERATIONAL' : 'OFFLINE'}
                   </span>
                 </div>

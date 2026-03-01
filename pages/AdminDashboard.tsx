@@ -133,10 +133,10 @@ const AdminDashboard: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'DELIVERED': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-      case 'SHIPPED': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'DELIVERED': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      case 'SHIPPED': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
       case 'CANCELLED': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-      default: return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+      default: return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
     }
   };
 
@@ -179,26 +179,26 @@ const AdminDashboard: React.FC = () => {
             <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-xl">
               <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest block mb-1">Total Revenue</span>
               <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">₹{totalSales.toLocaleString('en-IN')}</p>
-              <div className="mt-4 flex items-center text-green-500 text-xs font-bold">
+              <div className="mt-4 flex items-center text-red-500 text-xs font-bold">
                 <i className="fa-solid fa-arrow-trend-up mr-2"></i> +12.5% from last month
               </div>
             </div>
             <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-xl">
               <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest block mb-1">Active Orders</span>
               <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">{orders.filter(o => o.status === 'PENDING').length}</p>
-              <div className="mt-4 flex items-center text-yellow-500 text-xs font-bold">
+              <div className="mt-4 flex items-center text-red-500 text-xs font-bold">
                 <i className="fa-solid fa-clock mr-2"></i> Awaiting fulfillment
               </div>
             </div>
-            <div className={`p-8 rounded-[2.5rem] border ${isOnline ? 'bg-white dark:bg-slate-900 border-green-500/20' : 'bg-red-50 dark:bg-red-950/20 border-red-500'}`}>
+            <div className={`p-8 rounded-[2.5rem] border ${isOnline ? 'bg-white dark:bg-slate-900 border-red-500/20' : 'bg-red-50 dark:bg-red-950/20 border-red-500'}`}>
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest block mb-1">Atlas Connection</span>
-                  <p className={`text-3xl font-black tracking-tighter ${isOnline ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className={`text-3xl font-black tracking-tighter ${isOnline ? 'text-red-600' : 'text-red-600'}`}>
                     {isOnline ? 'ONLINE' : 'OFFLINE'}
                   </p>
                 </div>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isOnline ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600 animate-pulse'}`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isOnline ? 'bg-red-100 text-red-600' : 'bg-red-100 text-red-600 animate-pulse'}`}>
                   <i className={`fa-solid ${isOnline ? 'fa-cloud-check' : 'fa-triangle-exclamation'}`}></i>
                 </div>
               </div>
@@ -344,12 +344,12 @@ const AdminDashboard: React.FC = () => {
                         <div className="flex justify-end space-x-2">
                           {o.status === 'PENDING' && (
                             <>
-                              <button onClick={() => updateOrder(o.id, 'SHIPPED')} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all">Ship</button>
+                              <button onClick={() => updateOrder(o.id, 'SHIPPED')} className="bg-red-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all">Ship</button>
                               <button onClick={() => updateOrder(o.id, 'CANCELLED')} className="bg-slate-100 dark:bg-slate-800 text-slate-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all">Cancel</button>
                             </>
                           )}
                           {o.status === 'SHIPPED' && (
-                            <button onClick={() => updateOrder(o.id, 'DELIVERED')} className="bg-green-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-700 transition-all">Deliver</button>
+                            <button onClick={() => updateOrder(o.id, 'DELIVERED')} className="bg-red-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all">Deliver</button>
                           )}
                         </div>
                       </td>
@@ -380,10 +380,10 @@ const AdminDashboard: React.FC = () => {
                 <div className="relative h-48 overflow-hidden">
                   <img src={event.image} alt={event.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
                   <div className="absolute top-4 right-4 flex space-x-2">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${event.type === 'SALE' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'}`}>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${event.type === 'SALE' ? 'bg-red-600 text-white' : 'bg-red-600 text-white'}`}>
                       {event.type}
                     </span>
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${event.isActive ? 'bg-green-500 text-white' : 'bg-slate-500 text-white'}`}>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${event.isActive ? 'bg-red-500 text-white' : 'bg-slate-500 text-white'}`}>
                       {event.isActive ? 'Active' : 'Paused'}
                     </span>
                   </div>

@@ -88,7 +88,7 @@ const Home: React.FC = () => {
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
                 <div className="absolute inset-0 p-12 flex flex-col justify-end">
                   <div className="flex items-center space-x-3 mb-4">
-                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${sale.type === 'SALE' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'}`}>
+                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${sale.type === 'SALE' ? 'bg-red-600 text-white' : 'bg-red-600 text-white'}`}>
                       {sale.type === 'SALE' ? `${sale.discountPercentage}% OFF` : 'EVENT'}
                     </span>
                     <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">
