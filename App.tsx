@@ -17,7 +17,7 @@ import Checkout from './pages/Checkout.tsx';
 import Chatbot from './components/Chatbot.tsx';
 import { INITIAL_PRODUCTS, INITIAL_SALE_EVENTS } from './constants.ts';
 
-const API_BASE = "/api";
+const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 
 interface ThemeContextType { theme: 'light' | 'dark'; toggleTheme: () => void; }
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
