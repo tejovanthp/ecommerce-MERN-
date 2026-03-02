@@ -164,12 +164,27 @@ const Orders: React.FC = () => {
                    <p className="font-black text-slate-900 dark:text-white">Crimson Express Premium Logistics</p>
                 </div>
              </div>
-             <button 
-               onClick={handleSupport}
-               className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95"
-             >
-               Contact Dispatcher
-             </button>
+             <div className="flex items-center gap-4">
+               {trackingOrder.status === 'PENDING' && (
+                 <button 
+                   onClick={() => {
+                     if (window.confirm("Are you sure you want to cancel this acquisition? This will deduct the earned credits.")) {
+                       cancelOrder(trackingOrder.id);
+                       setTrackingOrder(null);
+                     }
+                   }}
+                   className="bg-white dark:bg-slate-800 text-red-600 border border-red-100 dark:border-red-900/30 px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-50 dark:hover:bg-red-950/20 transition-all active:scale-95"
+                 >
+                   Cancel Order
+                 </button>
+               )}
+               <button 
+                 onClick={handleSupport}
+                 className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all active:scale-95"
+               >
+                 Contact Dispatcher
+               </button>
+             </div>
           </div>
         </div>
       </div>
@@ -277,6 +292,18 @@ const Orders: React.FC = () => {
                            >
                             Support
                            </button>
+                           {order.status === 'PENDING' && (
+                             <button 
+                              onClick={() => {
+                                if (window.confirm("Are you sure you want to cancel this acquisition? This will deduct the earned credits.")) {
+                                  cancelOrder(order.id);
+                                }
+                              }}
+                              className="bg-white dark:bg-slate-800 text-red-600 border border-red-100 dark:border-red-900/30 px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-50 dark:hover:bg-red-950/20 transition-all active:scale-95"
+                             >
+                              Cancel
+                             </button>
+                           )}
                         </div>
                       </div>
                     ))}
@@ -289,19 +316,6 @@ const Orders: React.FC = () => {
                       Updated 5 Minutes Ago
                    </div>
                    <div className="flex items-center gap-8">
-                     {order.status === 'PENDING' && (
-                       <button 
-                        onClick={() => {
-                          if (window.confirm("Are you sure you want to cancel this acquisition? This will deduct the earned credits.")) {
-                            cancelOrder(order.id);
-                          }
-                        }}
-                        className="text-[10px] font-black text-red-600 uppercase tracking-widest hover:text-red-700 flex items-center group"
-                       >
-                          Cancel Acquisition
-                          <i className="fa-solid fa-ban ml-3 group-hover:scale-110 transition-transform"></i>
-                       </button>
-                     )}
                      <button 
                       onClick={() => setTrackingOrder(order)}
                       className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest hover:text-red-600 flex items-center group"
