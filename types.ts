@@ -11,6 +11,7 @@ export interface User {
   avatar?: string;
   phone?: string;
   address?: string;
+  credits?: number;
 }
 
 export interface Product {

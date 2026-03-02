@@ -54,6 +54,7 @@ interface StoreContextType {
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   updateOrder: (orderId: string, status: string) => Promise<void>;
+  cancelOrder: (orderId: string) => Promise<void>;
   addSaleEvent: (event: SaleEvent) => Promise<void>;
   updateSaleEvent: (event: SaleEvent) => Promise<void>;
   deleteSaleEvent: (eventId: string) => Promise<void>;
@@ -350,7 +351,14 @@ const App: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newOrder)
       });
-      if (!res.ok) {
+      if (res.ok) {
+        const creditsToGain = Math.floor(newOrder.total * 0.1);
+        if (user) {
+          const updatedUser = { ...user, credits: (user.credits || 0) + creditsToGain };
+          setUser(updatedUser);
+          localStorage.setItem('mycart_user', JSON.stringify(updatedUser));
+        }
+      } else {
         const err = await res.json();
         alert(`Order sync failed: ${err.error}. Your order was not saved.`);
         setOrders(oldOrders);
@@ -379,6 +387,36 @@ const App: React.FC = () => {
       }
     } catch (e) {
       alert("Network Error: Could not update order.");
+      setOrders(oldOrders);
+    }
+  };
+
+  const cancelOrder = async (orderId: string) => {
+    if (!user) return;
+    const oldOrders = [...orders];
+    const orderToCancel = orders.find(o => o.id === orderId);
+    if (!orderToCancel) return;
+
+    setOrders(orders.map(o => o.id === orderId ? { ...o, status: 'CANCELLED' } : o));
+    
+    try {
+      const res = await fetch(`${API_BASE}/orders/${orderId}/cancel`, {
+        method: 'PUT'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (user) {
+          const updatedUser = { ...user, credits: (user.credits || 0) - data.creditsLost };
+          setUser(updatedUser);
+          localStorage.setItem('mycart_user', JSON.stringify(updatedUser));
+        }
+      } else {
+        const err = await res.json();
+        alert(`Cancellation failed: ${err.error}`);
+        setOrders(oldOrders);
+      }
+    } catch (e) {
+      alert("Network Error: Could not cancel order.");
       setOrders(oldOrders);
     }
   };
@@ -447,7 +485,7 @@ const App: React.FC = () => {
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       <AuthContext.Provider value={{ user, users, login, signup, logout, updateUser, toggleUserRole, isAdmin: user?.role === 'ADMIN' }}>
-        <StoreContext.Provider value={{ products, orders, cart, loading, isOnline, diagnostics, users, saleEvents, addToCart, removeFromCart, updateCartQuantity, clearCart, placeOrder, addProduct, updateProduct, deleteProduct, updateOrder, addSaleEvent, updateSaleEvent, deleteSaleEvent, getActiveDiscount }}>
+        <StoreContext.Provider value={{ products, orders, cart, loading, isOnline, diagnostics, users, saleEvents, addToCart, removeFromCart, updateCartQuantity, clearCart, placeOrder, addProduct, updateProduct, deleteProduct, updateOrder, cancelOrder, addSaleEvent, updateSaleEvent, deleteSaleEvent, getActiveDiscount }}>
           <div className={`${theme}`}>
             <HashRouter>
               <div className="flex flex-col min-h-screen bg-white dark:bg-black text-slate-900 dark:text-slate-100 transition-colors duration-500 font-sans">

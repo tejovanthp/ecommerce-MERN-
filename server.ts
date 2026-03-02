@@ -303,6 +303,26 @@ app.put('/api/users/:id', async (req: Request, res: Response) => {
   }
 });
 
+app.put('/api/users/:id/password', async (req: Request, res: Response) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findOne({ id: req.params.id });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    
+    if (user.password !== currentPassword) {
+      return res.status(401).json({ error: "Current password incorrect" });
+    }
+    
+    user.password = newPassword;
+    await user.save();
+    res.json({ success: true, message: "Password updated successfully" });
+  } catch (err: any) {
+    res.status(500).json({ error: "Update Failed", message: err.message });
+  }
+});
+
 // --- Sale & Event Routes ---
 
 app.get('/api/sale-events', async (req: Request, res: Response) => {

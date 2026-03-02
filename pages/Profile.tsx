@@ -13,7 +13,8 @@ const Profile: React.FC = () => {
     phone: user?.phone || '',
     address: user?.address || ''
   });
-  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const userOrders = orders.filter(o => o.userId === user?.id);
 
@@ -23,9 +24,34 @@ const Profile: React.FC = () => {
     setShowEditModal(false);
   };
 
-  const handleMfaToggle = () => {
-    setMfaEnabled(!mfaEnabled);
-    alert(mfaEnabled ? "MFA Deactivated" : "MFA Secured");
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      alert("New passwords do not match");
+      return;
+    }
+    setIsChangingPassword(true);
+    try {
+      const res = await fetch(`/api/users/${user?.id}/password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("Password updated successfully");
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      } else {
+        alert(data.error || "Failed to update password");
+      }
+    } catch (err) {
+      alert("Network error occurred");
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   return (
@@ -130,12 +156,17 @@ const Profile: React.FC = () => {
                 <div className="bg-white/10 backdrop-blur-md p-8 rounded-3xl border border-white/20 shadow-inner">
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-[10px] font-black uppercase tracking-[0.2em]">Acquisition Credits</span>
-                    <span className="font-black text-xl">1,240 XP</span>
+                    <span className="font-black text-xl">{(user?.credits || 0).toLocaleString()} XP</span>
                   </div>
                   <div className="w-full bg-white/20 h-3 rounded-full overflow-hidden">
-                    <div className="bg-white h-full w-2/3 shadow-[0_0_20px_white]"></div>
+                    <div 
+                      className="bg-white h-full transition-all duration-1000 shadow-[0_0_20px_white]"
+                      style={{ width: `${Math.min(100, ((user?.credits || 0) / 5000) * 100)}%` }}
+                    ></div>
                   </div>
-                  <p className="text-[9px] font-black uppercase tracking-widest mt-4 text-center opacity-60">Next Level: Crimson Platinum</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest mt-4 text-center opacity-60">
+                    {user?.credits && user.credits >= 5000 ? 'Crimson Elite Achieved' : `Next Level: ${5000 - (user?.credits || 0)} XP Remaining`}
+                  </p>
                 </div>
               </div>
             </div>
@@ -179,41 +210,58 @@ const Profile: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 p-12 rounded-[3.5rem] border border-red-50 dark:border-white/5 shadow-xl shadow-red-500/5 space-y-12 animate-in fade-in duration-500">
             <div className="flex items-center space-x-6">
               <div className="w-14 h-14 bg-red-600 text-white rounded-[1.5rem] flex items-center justify-center shadow-xl shadow-red-500/20">
-                <i className="fa-solid fa-fingerprint text-2xl"></i>
+                <i className="fa-solid fa-key text-2xl"></i>
               </div>
               <div>
                 <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">Security Protocols</h3>
-                <p className="text-slate-500 dark:text-slate-400 font-medium">Configure advanced protection for your elite account.</p>
+                <p className="text-slate-500 dark:text-slate-400 font-medium">Update your access credentials to maintain vault integrity.</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-              <div className="p-10 bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] border border-slate-100 dark:border-white/5 space-y-8">
-                <div className="flex justify-between items-center">
-                  <h4 className="font-black text-slate-800 dark:text-slate-300 uppercase text-[10px] tracking-[0.2em]">Password Shield</h4>
-                  <span className="text-[9px] font-black bg-red-100 dark:bg-red-950/30 text-red-600 px-3 py-1 rounded-lg">VERIFIED</span>
+            <div className="max-w-2xl">
+              <form onSubmit={handlePasswordChange} className="space-y-8">
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Current Password</label>
+                    <input 
+                      type="password" 
+                      required
+                      value={passwordData.currentPassword}
+                      onChange={e => setPasswordData({...passwordData, currentPassword: e.target.value})}
+                      className="w-full bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent rounded-2xl py-5 px-6 outline-none focus:border-red-600 transition-all font-bold"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">New Password</label>
+                      <input 
+                        type="password" 
+                        required
+                        value={passwordData.newPassword}
+                        onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})}
+                        className="w-full bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent rounded-2xl py-5 px-6 outline-none focus:border-red-600 transition-all font-bold"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirm New Password</label>
+                      <input 
+                        type="password" 
+                        required
+                        value={passwordData.confirmPassword}
+                        onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                        className="w-full bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-transparent rounded-2xl py-5 px-6 outline-none focus:border-red-600 transition-all font-bold"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed font-medium">Rotating your access codes regularly ensures your digital vault remains impervious to external intrusion.</p>
-                <button onClick={() => alert("Identity verification link sent.")} className="w-full bg-white dark:bg-slate-700 border-2 border-slate-100 dark:border-white/10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-red-600 hover:text-red-600 transition-all text-slate-900 dark:text-white shadow-sm">Initialize Reset</button>
-              </div>
-
-              <div className="p-10 bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] border border-slate-100 dark:border-white/5 space-y-8">
-                <div className="flex justify-between items-center">
-                  <h4 className="font-black text-slate-800 dark:text-slate-300 uppercase text-[10px] tracking-[0.2em]">Multi-Factor Matrix</h4>
-                  <span className={`text-[9px] font-black px-3 py-1 rounded-lg ${mfaEnabled ? 'bg-red-100 text-red-600' : 'bg-red-100 text-red-600'}`}>
-                    {mfaEnabled ? 'OPERATIONAL' : 'OFFLINE'}
-                  </span>
-                </div>
-                <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed font-medium">Deploy biometrics or mobile-link verification for double-layer authentication on every deployment.</p>
                 <button 
-                  onClick={handleMfaToggle}
-                  className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl ${
-                    mfaEnabled ? 'bg-slate-900 text-white' : 'bg-red-600 text-white hover:bg-red-700'
-                  }`}
+                  type="submit" 
+                  disabled={isChangingPassword}
+                  className="bg-red-600 text-white px-12 py-5 rounded-3xl font-black text-xs uppercase tracking-widest shadow-2xl shadow-red-500/20 active:scale-95 transition-all disabled:opacity-50"
                 >
-                  {mfaEnabled ? 'Terminate MFA' : 'Establish MFA Link'}
+                  {isChangingPassword ? 'Updating Credentials...' : 'Update Password'}
                 </button>
-              </div>
+              </form>
             </div>
           </div>
         )}

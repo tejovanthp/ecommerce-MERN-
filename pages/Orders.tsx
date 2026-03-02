@@ -6,7 +6,7 @@ import { Order } from '../types.ts';
 
 const Orders: React.FC = () => {
   const { user } = useAuth();
-  const { orders, addToCart } = useStore();
+  const { orders, addToCart, cancelOrder } = useStore();
   const navigate = useNavigate();
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
 
@@ -288,13 +288,28 @@ const Orders: React.FC = () => {
                       <i className="fa-solid fa-clock-rotate-left mr-3"></i>
                       Updated 5 Minutes Ago
                    </div>
-                   <button 
-                    onClick={() => setTrackingOrder(order)}
-                    className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest hover:text-red-600 flex items-center group"
-                   >
-                      Track Console 
-                      <i className="fa-solid fa-location-arrow ml-3 group-hover:translate-x-2 transition-transform"></i>
-                   </button>
+                   <div className="flex items-center gap-8">
+                     {order.status === 'PENDING' && (
+                       <button 
+                        onClick={() => {
+                          if (window.confirm("Are you sure you want to cancel this acquisition? This will deduct the earned credits.")) {
+                            cancelOrder(order.id);
+                          }
+                        }}
+                        className="text-[10px] font-black text-red-600 uppercase tracking-widest hover:text-red-700 flex items-center group"
+                       >
+                          Cancel Acquisition
+                          <i className="fa-solid fa-ban ml-3 group-hover:scale-110 transition-transform"></i>
+                       </button>
+                     )}
+                     <button 
+                      onClick={() => setTrackingOrder(order)}
+                      className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest hover:text-red-600 flex items-center group"
+                     >
+                        Track Console 
+                        <i className="fa-solid fa-location-arrow ml-3 group-hover:translate-x-2 transition-transform"></i>
+                     </button>
+                   </div>
                 </div>
               </div>
             );
