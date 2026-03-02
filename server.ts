@@ -2,6 +2,7 @@
 import express, { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
+import path from 'path';
 import 'dotenv/config';
 import { createServer as createViteServer } from 'vite';
 import { INITIAL_PRODUCTS } from './constants.ts';
@@ -374,7 +375,7 @@ async function startServer() {
     // Handle SPA routing: serve index.html for any unknown routes
     app.get('*', (req, res, next) => {
       if (req.path.startsWith('/api')) return next();
-      res.sendFile(new URL('./dist/index.html', import.meta.url).pathname);
+      res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
     });
   }
 
