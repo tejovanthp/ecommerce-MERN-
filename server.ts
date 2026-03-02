@@ -351,6 +351,9 @@ app.delete('/api/sale-events/:id', async (req: Request, res: Response) => {
 
 async function startServer() {
   const isOk = await connectToDatabase();
+  const PORT = process.env.PORT || 3000;
+  
+  // API routes are already registered on 'app' at the top level
   
   if (process.env.NODE_ENV !== 'production') {
     try {
@@ -360,24 +363,28 @@ async function startServer() {
         appType: 'spa',
       });
       app.use(vite.middlewares);
+      console.log("🛠️ Vite development middleware active");
     } catch (e) {
-      console.warn("Vite middleware skipped (likely production build)");
+      console.warn("Vite middleware skipped");
     }
   } else {
+    // In production, serve the built static files
     app.use(express.static('dist'));
-  }
-
-  const PORT = process.env.PORT || 3000;
-  if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => {
-      console.log(`🚀 Local server running on http://localhost:${PORT}`);
+    
+    // Handle SPA routing: serve index.html for any unknown routes
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) return next();
+      res.sendFile(new URL('./dist/index.html', import.meta.url).pathname);
     });
   }
+
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  });
 }
 
-if (process.env.NODE_ENV !== 'production') {
-  startServer();
-}
+// Start the server
+startServer();
 
 export default app;
 
