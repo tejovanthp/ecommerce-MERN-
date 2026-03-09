@@ -32,7 +32,7 @@ const Chatbot: React.FC = () => {
     if (!input.trim() || isLoading) return;
 
     const userMsg = input.trim();
-    const apiKey = process.env.API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
 
     setInput('');
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
@@ -42,7 +42,7 @@ const Chatbot: React.FC = () => {
       setTimeout(() => {
         setMessages(prev => [...prev, { 
           role: 'bot', 
-          text: "System Offline: The Crimson AI link is missing an API_KEY. Please configure your environment variables to activate this feature." 
+          text: "System Offline: The Crimson AI link is missing a GEMINI_API_KEY. Please configure your environment variables to activate this feature." 
         }]);
         setIsLoading(false);
       }, 1000);
@@ -53,7 +53,7 @@ const Chatbot: React.FC = () => {
       const ai = new GoogleGenAI({ apiKey });
       
       const chat = ai.chats.create({
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-3.1-pro-preview',
         config: {
           systemInstruction: "You are 'Crimson Pro AI', the elite luxury concierge for 'mycart' e-commerce. Your tone is sophisticated, professional, and slightly futuristic. Always highlight our 'Crimson Excellence' culture: Free global logistics for elite members and our signature 7-day White-Glove returns.",
           temperature: 0.7,

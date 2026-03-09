@@ -2,9 +2,9 @@
 import { GoogleGenAI } from "@google/genai";
 
 const getAIClient = () => {
-  const apiKey = process.env.API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    console.error("❌ CRITICAL: Gemini API_KEY is missing from environment variables.");
+    console.error("❌ CRITICAL: Gemini GEMINI_API_KEY is missing from environment variables.");
     throw new Error("Missing API Key");
   }
   return new GoogleGenAI({ apiKey });
