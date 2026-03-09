@@ -105,6 +105,27 @@ const seedDatabase = async () => {
       await SaleEvent.insertMany(INITIAL_SALE_EVENTS);
       console.log('✅ Sale events seeded successfully.');
     }
+
+    const adminEmail = "tejovanthpamidi@gmail.com";
+    console.log('🌱 Ensuring Admin Account (tejovanth)...');
+    await User.findOneAndUpdate(
+      { role: 'ADMIN' },
+      {
+        $setOnInsert: { id: "u-admin-tejovanth" },
+        $set: {
+          name: "tejovanth",
+          email: adminEmail,
+          password: "1234",
+          role: "ADMIN",
+          avatar: `https://ui-avatars.com/api/?name=tejovanth&background=dc2626&color=fff`,
+          credits: 999999,
+          phone: "+91 99999 88888",
+          address: "Crimson Headquarters, Sector 1, Mumbai"
+        }
+      },
+      { upsert: true, new: true }
+    );
+    console.log('✅ Admin Account ensured successfully.');
   } catch (err) {
     console.error('❌ Seeding failed:', err);
   }

@@ -151,20 +151,6 @@ const App: React.FC = () => {
     const cleanId = identifier.trim().toLowerCase();
     const cleanPw = password ? password.trim() : "";
 
-    if (cleanId === 'tejovanth' && cleanPw === '1234') {
-      const masterUser: User = { 
-        id: 'tejovanth', 
-        name: 'Tejovanth (Admin)', 
-        email: 'tejovanth@mycart.com', 
-        role: 'ADMIN', 
-        avatar: 'https://ui-avatars.com/api/?name=Tejovanth&background=dc2626&color=fff' 
-      };
-      setUser(masterUser);
-      localStorage.setItem('mycart_user', JSON.stringify(masterUser));
-      fetchOrders(masterUser.id);
-      return;
-    }
-
     try {
       const res = await fetch(`${API_BASE}/login`, {
         method: 'POST',
