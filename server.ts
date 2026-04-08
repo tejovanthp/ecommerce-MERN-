@@ -49,7 +49,8 @@ const UserSchema = new mongoose.Schema({
   role: { type: String, enum: ['USER', 'ADMIN'], default: 'USER' },
   avatar: String,
   phone: String,
-  address: String
+  address: String,
+  credits: { type: Number, default: 0 }
 });
 
 const ProductSchema = new mongoose.Schema({
@@ -273,7 +274,15 @@ app.post('/api/orders', async (req: Request, res: Response) => {
   try {
     const newOrder = new Order(req.body);
     await newOrder.save();
-    console.log(`✅ Order ${newOrder.id} saved for user ${newOrder.userId}`);
+    
+    // Increment credits (10% of total)
+    const creditsGained = Math.floor(newOrder.total * 0.1);
+    await User.findOneAndUpdate(
+      { id: newOrder.userId },
+      { $inc: { credits: creditsGained } }
+    );
+
+    console.log(`✅ Order ${newOrder.id} saved for user ${newOrder.userId}. Credits gained: ${creditsGained}`);
     res.status(201).json(newOrder);
   } catch (err: any) { 
     console.error("❌ Order Save Failed:", err);
@@ -293,6 +302,30 @@ app.put('/api/orders/:id', async (req: Request, res: Response) => {
     if (!updated) return res.status(404).json({ error: "Order not found" });
     res.json(updated);
   } catch (err: any) { res.status(500).json({ error: "Update Failed", message: err.message }); }
+});
+
+app.put('/api/orders/:id/cancel', async (req: Request, res: Response) => {
+  const isOk = await connectToDatabase();
+  if (!isOk) return res.status(503).json({ error: 'Database offline' });
+  try {
+    const order = await Order.findOne({ id: req.params.id });
+    if (!order) return res.status(404).json({ error: "Order not found" });
+    if (order.status === 'CANCELLED') return res.status(400).json({ error: "Order already cancelled" });
+
+    order.status = 'CANCELLED';
+    await order.save();
+
+    // Deduct credits (10% of total)
+    const creditsLost = Math.floor(order.total * 0.1);
+    await User.findOneAndUpdate(
+      { id: order.userId },
+      { $inc: { credits: -creditsLost } }
+    );
+
+    res.json({ success: true, message: "Order cancelled", creditsLost });
+  } catch (err: any) {
+    res.status(500).json({ error: "Cancellation Failed", message: err.message });
+  }
 });
 
 // --- User Management Routes ---
