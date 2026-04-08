@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 interface Message {
   role: 'user' | 'bot';
@@ -50,19 +50,21 @@ const Chatbot: React.FC = () => {
     }
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ 
+        model: 'gemini-1.5-pro',
+        systemInstruction: "You are 'Crimson Pro AI', the elite luxury concierge for 'mycart' e-commerce. Your tone is sophisticated, professional, and slightly futuristic. Always highlight our 'Crimson Excellence' culture: Free global logistics for elite members and our signature 7-day White-Glove returns.",
+      });
       
-      const chat = ai.chats.create({
-        model: 'gemini-3.1-pro-preview',
-        config: {
-          systemInstruction: "You are 'Crimson Pro AI', the elite luxury concierge for 'mycart' e-commerce. Your tone is sophisticated, professional, and slightly futuristic. Always highlight our 'Crimson Excellence' culture: Free global logistics for elite members and our signature 7-day White-Glove returns.",
+      const chat = model.startChat({
+        history: historyRef.current,
+        generationConfig: {
           temperature: 0.7,
         },
-        history: historyRef.current
       });
 
-      const response = await chat.sendMessage({ message: userMsg });
-      const botText = response.text || "I am currently re-calibrating my neural pathways. Please re-state your request.";
+      const result = await chat.sendMessage(userMsg);
+      const botText = result.response.text() || "I am currently re-calibrating my neural pathways. Please re-state your request.";
       
       setMessages(prev => [...prev, { role: 'bot', text: botText }]);
       
